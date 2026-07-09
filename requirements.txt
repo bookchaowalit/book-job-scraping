@@ -1,0 +1,30 @@
+# Book Scraping Platform — Python Dependencies
+# Install: pip install -r requirements.txt
+
+# ── Core HTTP engines ──────────────────────────────
+httpx>=0.27.0
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
+
+# ── Browser automation ─────────────────────────────
+playwright>=1.40.0
+selenium>=4.15.0
+
+# ── RSS/Atom feeds ─────────────────────────────────
+feedparser>=6.0.0
+
+# ── AI-powered scraping ────────────────────────────
+firecrawl-py>=1.0.0
+
+# ── Data processing ────────────────────────────────
+pyyaml>=6.0
+
+# ── Scheduling ─────────────────────────────────────
+# (no external deps — uses built-in scheduler)
+
+# ── Optional: large-scale crawling ─────────────────
+# scrapy>=2.11.0
+
+# ── Optional: data export formats ──────────────────
+# pyarrow>=14.0.0    # Parquet export
+# openpyxl>=3.1.0    # Excel export

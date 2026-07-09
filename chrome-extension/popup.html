@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quick Job Saver</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 360px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 16px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #334155;
+    }
+    .header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #f8fafc;
+    }
+    .header .badge {
+      background: #3b82f6;
+      color: white;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 10px;
+    }
+    .status {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .status.detected {
+      border-color: #22c55e;
+      background: #052e16;
+    }
+    .status p {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-bottom: 4px;
+    }
+    .status .job-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #f8fafc;
+      word-break: break-word;
+    }
+    .status .company {
+      font-size: 13px;
+      color: #60a5fa;
+    }
+    .form-group {
+      margin-bottom: 10px;
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      color: #94a3b8;
+      margin-bottom: 4px;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 8px 10px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      color: #e2e8f0;
+      font-size: 13px;
+      outline: none;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: #3b82f6;
+    }
+    textarea { resize: vertical; min-height: 60px; }
+    .btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 8px;
+    }
+    .btn-primary {
+      background: #3b82f6;
+      color: white;
+    }
+    .btn-primary:hover { background: #2563eb; }
+    .btn-primary:disabled {
+      background: #475569;
+      cursor: not-allowed;
+    }
+    .btn-secondary {
+      background: #1e293b;
+      color: #94a3b8;
+      border: 1px solid #334155;
+    }
+    .btn-secondary:hover { background: #334155; }
+    .success-msg {
+      background: #052e16;
+      border: 1px solid #22c55e;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+      color: #4ade80;
+      font-weight: 600;
+      display: none;
+    }
+    .stats {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #334155;
+    }
+    .stat {
+      flex: 1;
+      text-align: center;
+      background: #1e293b;
+      border-radius: 6px;
+      padding: 8px;
+    }
+    .stat .num {
+      font-size: 18px;
+      font-weight: 700;
+      color: #3b82f6;
+    }
+    .stat .label {
+      font-size: 10px;
+      color: #64748b;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>💼 Quick Job Saver</h1>
+    <span class="badge">Pipeline</span>
+  </div>
+
+  <div id="jobStatus" class="status">
+    <p>Detecting job from current page...</p>
+  </div>
+
+  <div id="formArea">
+    <div class="form-group">
+      <label>Job Title</label>
+      <input type="text" id="jobTitle" placeholder="Auto-detected from page">
+    </div>
+    <div class="form-group">
+      <label>Company</label>
+      <input type="text" id="company" placeholder="Auto-detected from page">
+    </div>
+    <div class="form-group">
+      <label>Location</label>
+      <input type="text" id="location" placeholder="e.g. Remote, Bangkok">
+    </div>
+    <div class="form-group">
+      <label>Salary Range (optional)</label>
+      <input type="text" id="salary" placeholder="e.g. 80000-120000">
+    </div>
+    <div class="form-group">
+      <label>Notes</label>
+      <textarea id="notes" placeholder="Why this job? Key requirements?"></textarea>
+    </div>
+
+    <button id="saveBtn" class="btn btn-primary">💾 Save to Pipeline</button>
+    <button id="saveApplyBtn" class="btn btn-secondary">📤 Save & Mark as Applied</button>
+  </div>
+
+  <div id="successMsg" class="success-msg">
+    ✅ Job saved to pipeline!
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="num" id="savedCount">0</div>
+      <div class="label">Saved Today</div>
+    </div>
+    <div class="stat">
+      <div class="num" id="totalCount">0</div>
+      <div class="label">Total Saved</div>
+    </div>
+    <div class="stat">
+      <div class="num" id="appliedCount">0</div>
+      <div class="label">Applied</div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

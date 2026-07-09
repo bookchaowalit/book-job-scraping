@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "Quick Job Saver — Solo Empire Pipeline",
+  "version": "1.0.0",
+  "description": "Save any job from any board directly to your Solo Empire pipeline CSV with one click.",
+  "permissions": ["activeTab", "storage", "contextMenus"],
+  "host_permissions": [
+    "https://*.linkedin.com/*",
+    "https://*.indeed.com/*",
+    "https://*.glassdoor.com/*",
+    "https://*.remotive.com/*",
+    "https://*.weworkremotely.com/*",
+    "https://*.remoteok.com/*",
+    "https://*.wellfound.com/*",
+    "https://*.otta.com/*",
+    "https://*.dice.com/*",
+    "https://*.jobthai.com/*",
+    "https://*.jobsdb.com/*",
+    "<all_urls>"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"]
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

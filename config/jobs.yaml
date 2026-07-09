@@ -1,0 +1,514 @@
+# ============================================================
+# Scrape Job Schedule Configuration
+# ============================================================
+# Each job defines what to scrape, which engine to use, and how often.
+#
+# Schedule format: cron expression (minute hour day month weekday)
+#   "0 * * * *"     = every hour
+#   "0 */6 * * *"   = every 6 hours
+#   "0 0 * * *"     = daily at midnight
+#   "0 9 * * *"     = daily at 9am
+#   "0 0 * * 0"     = weekly on Sunday
+#   "0 0 1 * *"     = monthly on the 1st
+#
+# Engines: httpx | playwright | selenium | scrapy | rss
+#
+# Data freshness guide:
+#   - Job listings:     daily  (jobs expire fast)
+#   - Product prices:   every 6 hours (price changes frequent)
+#   - Restaurant/business: weekly (stable data)
+#   - News articles:    every 2 hours (breaking news)
+#   - Real estate:      daily (new listings)
+#   - Social media:     every 4 hours (trending content)
+# ============================================================
+
+settings:
+  default_rate_limit: 2.0
+  default_timeout: 30
+  max_retries: 3
+  cache_enabled: true
+  cache_ttl: 86400  # 24 hours
+  export_formats:
+    - json
+    - csv
+  data_dir: data/
+  log_level: INFO
+
+jobs:
+  # ── TECH NEWS (every 6 hours) ──────────────────────────
+  - name: notebookspec_tech
+    category: news
+    engine: rss
+    url: "https://notebookspec.com/web/feed/"
+    schedule: "0 */6 * * *"
+    enabled: true
+    rate_limit: 2.0
+    scraper_module: "ecommerce.shopee_scraper"
+    scraper_class: "NotebookspecScraper"
+
+  - name: matichon_news
+    category: news
+    engine: rss
+    url: "https://www.matichon.co.th/feed"
+    schedule: "0 */4 * * *"
+    enabled: true
+    rate_limit: 2.0
+    scraper_module: "news.matichon_scraper"
+    scraper_class: "MatichonScraper"
+
+  # ── CLASSIFIEDS (every 6 hours) ──────────────────────────
+  - name: kaidee_classifieds
+    category: marketplace
+    engine: httpx
+    url: "https://www.kaidee.com/"
+    schedule: "0 */6 * * *"
+    enabled: true
+    rate_limit: 3.0
+    scraper_module: "ecommerce.lazada_scraper"
+    scraper_class: "KaideeScraper"
+
+  # ── BUSINESSES / RESTAURANTS (weekly) ────────────────────
+  - name: wongnai_bangkok
+    category: businesses
+    engine: httpx
+    url: "https://www.wongnai.com/restaurants?locationKey=1"
+    schedule: "0 0 * * 0"
+    enabled: true
+    rate_limit: 4.0
+    scraper_module: "restaurants.wongnai_scraper"
+    scraper_class: "WongnaiScraper"
+    params:
+      locations:
+        - bangkok
+        - chiangmai
+        - phuket
+      max_pages: 3
+
+  - name: wongnai_upcountry
+    category: businesses
+    engine: httpx
+    url: "https://www.wongnai.com/restaurants?locationKey=6"
+    schedule: "0 0 * * 0"
+    enabled: true
+    rate_limit: 4.0
+    scraper_module: "restaurants.wongnai_scraper"
+    scraper_class: "WongnaiScraper"
+    params:
+      locations:
+        - khonkaen
+        - korat
+        - pattaya
+      max_pages: 2
+
+  # ── NEWS (every 2 hours) ─────────────────────────────────
+  - name: thai_business_news
+    category: news
+    engine: rss
+    url: "https://www.bangkokpost.com/rss/data/business.xml"
+    schedule: "0 */2 * * *"
+    enabled: true
+    rate_limit: 1.0
+    scraper_module: "news.thai_news_scraper"
+    scraper_class: "ThaiNewsScraper"
+    params:
+      language: en
+      feeds:
+        - bangkok_post_business
+        - bangkok_post_tech
+
+  - name: thai_tech_news
+    category: news
+    engine: rss
+    url: "https://www.blognone.com/atom"
+    schedule: "0 */2 * * *"
+    enabled: true
+    rate_limit: 1.0
+    scraper_module: "news.thai_news_scraper"
+    scraper_class: "ThaiNewsScraper"
+    params:
+      language: th
+      feeds:
+        - techsauce
+        - techcrunch
+        - thaiger_business
+
+  # ── REAL ESTATE (daily) ──────────────────────────────────
+  - name: ddproperty_condos
+    category: property
+    engine: httpx
+    url: "https://www.ddproperty.com/condo-for-rent/bangkok"
+    schedule: "0 8 * * *"
+    enabled: true
+    rate_limit: 3.0
+    max_pages: 5
+    scraper_module: "property.ddproperty_scraper"
+    scraper_class: "DDPropertyScraper"
+    params:
+      type: condo
+      max_price: 30000
+
+  # ── CRYPTO PRICES (every 4 hours) ─────────────────────────
+  - name: crypto_prices
+    category: finance
+    engine: httpx
+    url: "https://api.coingecko.com/api/v3/simple/price"
+    schedule: "0 */4 * * *"
+    enabled: true
+    rate_limit: 2.0
+    scraper_module: "scripts.scrape_crypto_prices"
+    scraper_class: "CryptoPriceScraper"
+    params:
+      coins:
+        - bitcoin
+        - ethereum
+        - solana
+        - binancecoin
+        - ripple
+        - cardano
+        - dogecoin
+        - polkadot
+        - avalanche-2
+        - chainlink
+      vs_currencies:
+        - usd
+        - thb
+      alert_threshold: 5.0
+
+  # ── EXCHANGE RATES (every 6 hours) ────────────────────────
+  - name: exchange_rates
+    category: finance
+    engine: httpx
+    url: "https://api.frankfurter.dev/v1/latest"
+    schedule: "0 */6 * * *"
+    enabled: true
+    rate_limit: 1.0
+    scraper_module: "scripts.scrape_exchange_rates"
+    scraper_class: "ExchangeRateScraper"
+    params:
+      base: THB
+      symbols:
+        - USD
+        - EUR
+        - JPY
+        - GBP
+        - CNY
+        - SGD
+        - HKD
+        - AUD
+        - KRW
+        - MYR
+      alert_threshold: 0.5
+
+  # ── GITHUB TRENDING (daily) ───────────────────────────────
+  - name: github_trending
+    category: dev
+    engine: httpx
+    url: "https://api.github.com/search/repositories"
+    schedule: "0 10 * * *"
+    enabled: true
+    rate_limit: 1.0
+    scraper_module: "scripts.scrape_github_trending"
+    scraper_class: "GitHubTrendingScraper"
+    params:
+      languages:
+        - python
+        - javascript
+        - typescript
+        - rust
+        - go
+      since: daily
+      min_stars: 50
+      keywords:
+        - ai
+        - agent
+        - saas
+        - api
+        - tool
+        - framework
+        - scraper
+        - bot
+
+  # ── HACKERNEWS (daily 9am) ──────────────────────────────────
+  - name: hackernews
+    category: dev
+    engine: httpx
+    url: "https://hacker-news.firebaseio.com/v0"
+    schedule: "0 9 * * *"
+    enabled: true
+    rate_limit: 1.0
+    scraper_module: "scripts.scrape_hackernews"
+    scraper_class: "HackerNewsScraper"
+    params:
+      limit: 30
+
+  # ── DEV.TO (daily 10am) ─────────────────────────────────────
+  - name: devto_articles
+    category: dev
+    engine: httpx
+    url: "https://dev.to/api/articles"
+    schedule: "0 10 * * *"
+    enabled: true
+    rate_limit: 1.0
+    scraper_module: "scripts.scrape_devto"
+    scraper_class: "DevToScraper"
+    params:
+      tags:
+        - python
+        - typescript
+        - javascript
+        - react
+        - nextjs
+        - ai
+        - webdev
+        - programming
+      per_page: 20
+
+  # ── PRODUCTHUNT (daily 11am) ─────────────────────────────────
+  - name: producthunt_top
+    category: dev
+    engine: httpx
+    url: "https://www.producthunt.com/feed"
+    schedule: "0 11 * * *"
+    enabled: true
+    rate_limit: 2.0
+    scraper_module: "scripts.scrape_producthunt"
+    scraper_class: "ProductHuntScraper"
+    params:
+      limit: 20
+
+  # ── PROPERTY LISTINGS (daily) ─────────────────────────────
+  - name: property_listings
+    category: real_estate
+    engine: firecrawl
+    url: "https://www.ddproperty.com/condo-for-sale/bangkok"
+    schedule: "0 9 * * *"
+    enabled: true
+    rate_limit: 5.0
+    scraper_module: "scripts.scrape_property_listings"
+    scraper_class: "PropertyListingScraper"
+    params:
+      type: condo_sale
+      max_pages: 3
+      alert_drop_pct: 10.0
+
+  # ── SEO RANKINGS (daily) ──────────────────────────────────
+  - name: seo_rankings
+    category: marketing
+    engine: firecrawl
+    url: "https://api.firecrawl.dev/v1/search"
+    schedule: "0 8 * * *"
+    enabled: true
+    rate_limit: 3.0
+    scraper_module: "scripts.scrape_seo_rankings"
+    scraper_class: "SEORankingScraper"
+    params:
+      keywords:
+        - "next.js developer bangkok"
+        - "python developer thailand"
+        - "full-stack developer bangkok"
+        - "AI developer thailand"
+        - "web scraping service"
+        - "chatbot developer bangkok"
+        - "freelance developer thailand"
+        - "react developer bangkok"
+      domains:
+        - bookchaowalit.com
+        - chaowalit.com
+      alert_improve: 5
+
+  # ── JOB POSTINGS (every 6 hours) ───────────────────────────
+  - name: job_postings
+    category: sales
+    engine: firecrawl+httpx
+    url: "https://remotive.com/api/remote-jobs"
+    schedule: "0 */6 * * *"
+    enabled: true
+    rate_limit: 2.0
+    scraper_module: "scripts.scrape_job_postings"
+    scraper_class: "JobPostingScraper"
+    params:
+      boards:
+        # API-based (reliable)
+        - remotive
+        - weworkremotely
+        - remoteok
+        - himalayas
+        - jobicy
+        - landing-jobs
+        - hn-hiring
+        - workingnomads
+        - themuse
+        - remoteco
+        # HTML scrapers (higher value, may break)
+        - arc
+        - toptal
+        - dice
+        # Thai market
+        - fastwork
+        - jobthai
+        - jobbkk
+      keywords:
+        - python
+        - react
+        - next.js
+        - typescript
+        - full-stack
+        - developer
+        - AI engineer
+        - backend
+        - frontend
+        - node.js
+        - FastAPI
+        - Django
+      min_salary: 0
+
+  # ── STOCK PRICES (daily 8am) ─────────────────────────────
+  - name: stock_prices
+    category: finance
+    engine: httpx
+    url: "https://query1.finance.yahoo.com/v8/finance/chart"
+    schedule: "0 8 * * *"
+    enabled: true
+    rate_limit: 1.0
+    scraper_module: "scripts.scrape_stock_prices"
+    scraper_class: "StockPriceScraper"
+    params:
+      symbols:
+        - AAPL
+        - MSFT
+        - GOOGL
+        - AMZN
+        - NVDA
+        - META
+        - TSLA
+        - SPY
+        - QQQ
+      alert_threshold: 3.0
+
+  # ── AI TOOLS (daily) ───────────────────────────────────────
+  - name: ai_tools
+    category: ai
+    engine: firecrawl
+    url: "https://www.producthunt.com"
+    schedule: "0 11 * * *"
+    enabled: true
+    rate_limit: 5.0
+    scraper_module: "scripts.scrape_ai_tools"
+    scraper_class: "AIToolScraper"
+    params:
+      sources:
+        - producthunt
+        - taft
+        - search
+      categories:
+        - ai
+        - developer-tools
+        - productivity
+
+  # ── DEFI YIELDS (daily 7am) ────────────────────────────
+  - name: defi_yields
+    category: finance
+    engine: httpx
+    url: "https://yields.llama.fi/pools"
+    schedule: "0 7 * * *"
+    enabled: true
+    rate_limit: 1.0
+    scraper_module: "scripts.scrape_defi_yields"
+    scraper_class: "DeFiYieldScraper"
+    params:
+      chains:
+        - Ethereum
+        - Arbitrum
+        - Optimism
+        - Polygon
+        - Base
+      min_apy: 5.0
+
+  # ── FLIGHT PRICES (daily) ──────────────────────────────────
+  - name: flight_prices
+    category: travel
+    engine: firecrawl+httpx
+    url: "https://api.tequila.kiwi.com/v2/search"
+    schedule: "0 7 * * 1"
+    enabled: true
+    rate_limit: 10.0
+    scraper_module: "scripts.scrape_flight_prices"
+    scraper_class: "FlightPriceScraper"
+    params:
+      origin: BKK
+      routes:
+        - BKK-SIN
+        - BKK-TYO
+        - BKK-HKG
+        - BKK-ICN
+        - BKK-KUL
+      days_ahead: 30
+      alert_drop_pct: 15.0
+
+  # ── JOB MATCH FILTER (runs after job_postings) ─────────────
+  - name: job_match_filter
+    category: sales
+    engine: local
+    url: null
+    schedule: "30 7 * * *"
+    enabled: true
+    rate_limit: 0.0
+    scraper_module: "scripts.filter_job_matches"
+    scraper_class: "JobMatchFilter"
+    params:
+      min_score: 5
+      top: 15
+      input: "domains/book-dev/book-scraping/data/job_postings.csv"
+      output: "domains/book-dev/book-scraping/data/matched_jobs.csv"
+
+  # ── MONEY OPPORTUNITIES (daily) ─────────────────────────────
+  - name: money_opportunities
+    category: opportunities
+    engine: httpx
+    url: "https://www.etsy.com/market/trending"
+    schedule: "0 10 * * *"
+    enabled: true
+    rate_limit: 5.0
+    scraper_module: "opportunities.scrape_money_opportunities"
+    scraper_class: "MoneyOpportunityScraper"
+    params:
+      sources:
+        - hn
+        - github
+        - firecrawl-search
+        - etsy
+        - ebay
+        - tiktok
+        - reddit
+        - producthunt
+        - amazon
+        - crypto
+        - tcg-prices
+        - etsy-sold
+        - amazon-bsr
+      categories:
+        - tcg
+        - digital-products
+        - ai-content
+        - print-on-demand
+        - courses
+        - freelance-services
+        - trending-products
+        - content-creation
+      min_score: 60
+      send_digest: true
+      push_todoist: true
+
+  # ── SCRAPER DASHBOARD (3x/day: 8:15, 11:15, 20:15) ───────
+  - name: scraper_dashboard
+    category: ops
+    engine: local
+    url: null
+    schedule: "15 8,11,20 * * *"
+    enabled: true
+    rate_limit: 0.0
+    scraper_module: "scripts.scraper_dashboard"
+    scraper_class: "ScraperDashboard"
+    params:
+      format: both
+      output: "data/briefings/scraper_dashboard.json"
