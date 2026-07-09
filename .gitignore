@@ -8,6 +8,8 @@ __pycache__/
 *.log
 .venv/
 
+# Dependencies
+node_modules/
+
 # Chrome extension build artifacts
-chrome-extension/node_modules/
 chrome-extension/dist/
