@@ -7,9 +7,15 @@ Summarizes daily GitHub commits and creates journal entries in Solo Empire DB.
 import sqlite3
 import json
 import subprocess
+import sys
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 
 from _env import DB_PATH, PROJECT_ROOT
+
+# Import database connection helper
+sys.path.insert(0, str(PROJECT_ROOT / "infra" / "scripts" / "utils"))
+from db_connect import get_db_connection
 
 
 def get_today_commits():
@@ -61,7 +67,7 @@ def get_local_commits():
 
 def create_journal_entry(title, content, tags=None, mood=None):
     """Create a journal entry in the database."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db_connection()
     today = datetime.now().strftime("%Y-%m-%d")
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     
