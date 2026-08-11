@@ -8,10 +8,10 @@ Outputs:
     - book-scraping/data/exported/github_trending_history.csv (appended daily)
 
 Usage:
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/scrape_github_trending.py
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/scrape_github_trending.py --languages python,javascript,typescript
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/scrape_github_trending.py --since weekly
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/scrape_github_trending.py --min-stars 100
+    python3 scripts (book-job-scraping)/scripts/scrape_github_trending.py
+    python3 scripts (book-job-scraping)/scripts/scrape_github_trending.py --languages python,javascript,typescript
+    python3 scripts (book-job-scraping)/scripts/scrape_github_trending.py --since weekly
+    python3 scripts (book-job-scraping)/scripts/scrape_github_trending.py --min-stars 100
 """
 
 import argparse
@@ -28,8 +28,8 @@ except ImportError:
     print("ERROR: httpx required. Install: pip install httpx")
     sys.exit(1)
 
-ROOT = Path(__file__).resolve().parents[4]  # solo-empire/
-OUTPUT_DIR = ROOT / "domains" / "book-dev" / "book-scraping" / "data" / "exported"
+ROOT = Path(__file__).resolve().parents[1]  # book-job-scraping repo root
+OUTPUT_DIR = ROOT / "data" / "exported"
 
 GITHUB_API = "https://api.github.com"
 

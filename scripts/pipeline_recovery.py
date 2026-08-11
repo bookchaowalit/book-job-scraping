@@ -296,7 +296,7 @@ def install_cron():
     """Install cron job for health monitoring."""
     print("Installing pipeline health monitoring cron job...\n")
 
-    cron_line = "*/30 * * * * /usr/bin/python3 /home/bookchaowalit/book-everything/solo-empire/domains/product/engineering/book-dev/book-scraping/scripts/pipeline_recovery.py --recover >> /home/bookchaowalit/book-everything/solo-empire/data/pipeline_health/cron.log 2>&1"
+    cron_line = "*/30 * * * * /usr/bin/python3 /home/bookchaowalit/book/solo-empire/projects/product/engineering/book-dev/github/bookchaowalit/book-apps/tools/book-job-scraping/scripts/pipeline_recovery.py --recover >> /home/bookchaowalit/book-everything/solo-empire/data/pipeline_health/cron.log 2>&1"
 
     print(f"  Cron entry:\n  {cron_line}\n")
     print("  To install, run:")

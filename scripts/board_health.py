@@ -26,9 +26,9 @@ from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[4]
-DATA_DIR = ROOT / "domains" / "book-dev" / "book-scraping" / "data"
-SCRIPTS_DIR = ROOT / "domains" / "book-dev" / "book-scraping" / "scripts"
+ROOT = Path(__file__).resolve().parents[1]
+DATA_DIR = ROOT / "data"
+SCRIPTS_DIR = ROOT / "scripts"
 
 JOB_POSTINGS_CSV = DATA_DIR / "job_postings.csv"
 PIPELINE_LOG_DIR = DATA_DIR

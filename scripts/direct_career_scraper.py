@@ -16,15 +16,20 @@ from pathlib import Path
 try:
     import httpx
 except ImportError:
-    import subprocess
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "httpx", "-q"])
-    import httpx
+    raise SystemExit(
+        "Missing dependency 'httpx'. "
+        "Install via project venv: pip install -r requirements.txt "
+        "(scripts must not pip-install at runtime)"
+    )
 
 try:
     from bs4 import BeautifulSoup
 except ImportError:
     import subprocess
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "beautifulsoup4", "-q"])
+    raise SystemExit(
+        "Missing dependency. Install via project venv: "
+        "pip install -r requirements.txt (no runtime pip install)"
+    )
     from bs4 import BeautifulSoup
 
 # Paths

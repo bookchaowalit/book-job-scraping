@@ -1,28 +1,35 @@
 """
-Shared configuration for book-scraping scripts.
-All secrets and config loaded from environment variables via .env file.
+Shared configuration for book-job-scraping.
+
+Paths and env loading go through scripts/repo_paths.py so core and scripts
+share one repo root (no legacy monorepo parents[N] layout).
 """
+
+from __future__ import annotations
 
 import os
 import sys
 from pathlib import Path
 
-# Load .env from project root
-try:
-    from dotenv import load_dotenv
-    _root = Path(__file__).resolve().parents[4]
-    load_dotenv(_root / ".env")
-except ImportError:
-    pass
+# core/config.py → repo root is parent; scripts/ holds shared path helpers
+_CORE_DIR = Path(__file__).resolve().parent
+_REPO_ROOT = _CORE_DIR.parent
+_SCRIPTS = _REPO_ROOT / "scripts"
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
+
+from repo_paths import (  # noqa: E402
+    DATA_DIR,
+    REPO_ROOT as PROJECT_ROOT,
+    SCRIPTS_DIR,
+    load_env,
+)
+
+load_env()
 
 # Telegram Bot — single source of truth
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
-
-# Project paths
-PROJECT_ROOT = Path(__file__).resolve().parents[4]
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-SCRIPTS_DIR = Path(__file__).resolve().parent
 
 
 def send_telegram(message: str, chat_id: str = None) -> bool:
@@ -30,10 +37,14 @@ def send_telegram(message: str, chat_id: str = None) -> bool:
     token = TELEGRAM_BOT_TOKEN
     chat = chat_id or TELEGRAM_CHAT_ID
     if not token or not chat:
-        print("[WARN] Telegram not configured — set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env")
+        print(
+            "[WARN] Telegram not configured — set TELEGRAM_BOT_TOKEN "
+            "and TELEGRAM_CHAT_ID in .env"
+        )
         return False
     try:
         import requests
+
         resp = requests.post(
             f"https://api.telegram.org/bot{token}/sendMessage",
             json={"chat_id": chat, "text": message, "parse_mode": "HTML"},

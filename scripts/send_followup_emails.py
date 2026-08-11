@@ -22,18 +22,14 @@ from datetime import datetime
 from email.mime.text import MIMEText
 from pathlib import Path
 
-# Load .env
-try:
-    from dotenv import load_dotenv
-    _root = Path(__file__).resolve().parents[6]
-    load_dotenv(_root / ".env")
-except ImportError:
-    pass
-
 # Add scripts to path for imports
 SCRIPT_DIR = Path(__file__).resolve().parent
-DATA_DIR = SCRIPT_DIR.parent / "data"
 sys.path.insert(0, str(SCRIPT_DIR))
+
+from repo_paths import DATA_DIR, load_env
+from safety import assert_no_network_send_without_flag
+
+load_env()
 
 from email_templates import is_thai_company
 from send_application_emails import is_non_hiring_email
@@ -337,8 +333,14 @@ def main():
     parser.add_argument("--delay", type=float, default=3.0, help="Delay between sends in seconds (default: 3)")
     args = parser.parse_args()
 
+    # Block live send before candidate lookup or any side effects
+    # (consistent with send_application_emails / auto_send_email)
+    if args.send:
+        assert_no_network_send_without_flag(want_send=True, action="follow-up email send")
+
     print(f"\n{'='*70}")
     print(f"  {'DRY RUN' if not args.send else 'SENDING'} FOLLOW-UP EMAILS")
+    print(f"  DATA_DIR: {DATA_DIR}")
     print(f"{'='*70}\n")
 
     # Load data
@@ -372,10 +374,11 @@ def main():
 
     if not args.send:
         print(f"\nDry run complete. {len(candidates)} follow-ups would be sent.")
-        print(f"Run with --send to actually send emails.")
+        print(f"Live send requires --send + BOOK_JOB_LIVE_SEND_ENABLED=1")
+        print(f"+ BOOK_JOB_SEND_UNLOCK=I_UNDERSTAND_LIVE_SEND")
         return
 
-    # Send
+    # Send (gate already enforced above when --send)
     print(f"\nSending {len(candidates)} follow-up emails (delay: {args.delay}s)...")
     service = load_gmail_service()
 

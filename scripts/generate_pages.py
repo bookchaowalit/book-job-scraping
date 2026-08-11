@@ -9,9 +9,9 @@ Output:
     - data/pages/{niche}.html (one page per niche)
 
 Usage:
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/generate_pages.py
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/generate_pages.py --niche defi,jobs
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/generate_pages.py --min-score 70
+    python3 scripts (book-job-scraping)/scripts/generate_pages.py
+    python3 scripts (book-job-scraping)/scripts/generate_pages.py --niche defi,jobs
+    python3 scripts (book-job-scraping)/scripts/generate_pages.py --min-score 70
 """
 
 import argparse
@@ -23,12 +23,12 @@ from typing import Any
 
 try:
     from dotenv import load_dotenv
-    _root = Path(__file__).resolve().parents[4]
+    _root = Path(__file__).resolve().parents[1]
     load_dotenv(_root / ".env")
 except ImportError:
     pass
 
-ROOT = Path(__file__).resolve().parents[4]
+ROOT = Path(__file__).resolve().parents[1]
 BRIEFINGS_DIR = ROOT / "data" / "briefings"
 PAGES_DIR = ROOT / "data" / "pages"
 

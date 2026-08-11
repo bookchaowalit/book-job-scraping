@@ -25,8 +25,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[4]
-DATA_DIR = ROOT / "domains" / "book-dev" / "book-scraping" / "data"
+ROOT = Path(__file__).resolve().parents[1]
+DATA_DIR = ROOT / "data"
 BACKUP_DIR = DATA_DIR / "backups"
 
 # Files to back up

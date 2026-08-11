@@ -19,8 +19,8 @@ from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[4]
-DATA_DIR = ROOT / "domains" / "book-dev" / "book-scraping" / "data"
+ROOT = Path(__file__).resolve().parents[1]
+DATA_DIR = ROOT / "data"
 JOB_POSTINGS_CSV = DATA_DIR / "job_postings.csv"
 MATCHED_CSV = DATA_DIR / "matched_jobs.csv"
 APPLY_TRACKER = DATA_DIR / "apply_tracker.csv"

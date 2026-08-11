@@ -9,10 +9,10 @@ Outputs:
     - Console alerts for price drops >10%
 
 Usage:
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/scrape_property_listings.py
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/scrape_property_listings.py --type condo --max-price 5000000
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/scrape_property_listings.py --area bangkok --bedrooms 1,2
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/scrape_property_listings.py --alert-drop-pct 10
+    python3 scripts (book-job-scraping)/scripts/scrape_property_listings.py
+    python3 scripts (book-job-scraping)/scripts/scrape_property_listings.py --type condo --max-price 5000000
+    python3 scripts (book-job-scraping)/scripts/scrape_property_listings.py --area bangkok --bedrooms 1,2
+    python3 scripts (book-job-scraping)/scripts/scrape_property_listings.py --alert-drop-pct 10
 """
 
 import argparse
@@ -27,7 +27,7 @@ from pathlib import Path
 try:
     from dotenv import load_dotenv
     # Load .env from project root (5 levels up from this script)
-    _root = Path(__file__).resolve().parents[4]
+    _root = Path(__file__).resolve().parents[1]
     load_dotenv(_root / ".env")
 except ImportError:
     pass  # dotenv not required, but .env won't be auto-loaded
@@ -42,10 +42,13 @@ try:
     from bs4 import BeautifulSoup
 except ImportError:
     import subprocess
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "beautifulsoup4", "-q"])
+    raise SystemExit(
+        "Missing dependency. Install via project venv: "
+        "pip install -r requirements.txt (no runtime pip install)"
+    )
     from bs4 import BeautifulSoup
 
-ROOT = Path(__file__).resolve().parents[4]  # solo-empire/
+ROOT = Path(__file__).resolve().parents[1]  # book-job-scraping repo root
 OUTPUT_DIR = ROOT / "domains" / "book-real-estate" / "data"
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0"}

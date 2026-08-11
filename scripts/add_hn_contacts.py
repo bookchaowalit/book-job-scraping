@@ -6,7 +6,7 @@ import json
 import csv
 from datetime import datetime
 
-BASE = "/home/bookchaowalit/book-everything/solo-empire/domains/product/engineering/book-dev/book-scraping"
+BASE = "/home/bookchaowalit/book/solo-empire/projects/product/engineering/book-dev/github/bookchaowalit/book-apps/tools/book-job-scraping"
 CONTACTS_FILE = f"{BASE}/data/contact_emails.json"
 TRACKER_FILE = f"{BASE}/data/apply_tracker.csv"
 RAW_CONTACTS = f"{BASE}/data/hn_may_april_contacts.json"

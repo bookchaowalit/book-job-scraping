@@ -4,12 +4,12 @@ Scrape freelance job boards (Upwork & Fastwork) via free httpx+BS4.
 Deduplicates against existing pipeline.csv and auto-appends new leads.
 
 Usage:
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/scrape_freelance_jobs.py
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/scrape_freelance_jobs.py --platform upwork
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/scrape_freelance_jobs.py --platform fastwork
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/scrape_freelance_jobs.py --queries "next.js react" "python AI"
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/scrape_freelance_jobs.py --dry-run
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/scrape_freelance_jobs.py --pages 3
+    python3 scripts (book-job-scraping)/scripts/scrape_freelance_jobs.py
+    python3 scripts (book-job-scraping)/scripts/scrape_freelance_jobs.py --platform upwork
+    python3 scripts (book-job-scraping)/scripts/scrape_freelance_jobs.py --platform fastwork
+    python3 scripts (book-job-scraping)/scripts/scrape_freelance_jobs.py --queries "next.js react" "python AI"
+    python3 scripts (book-job-scraping)/scripts/scrape_freelance_jobs.py --dry-run
+    python3 scripts (book-job-scraping)/scripts/scrape_freelance_jobs.py --pages 3
 """
 
 import argparse
@@ -25,7 +25,7 @@ from pathlib import Path
 # ── Bootstrap ──────────────────────────────────────────────────────────
 try:
     from dotenv import load_dotenv
-    _root = Path(__file__).resolve().parents[4]
+    _root = Path(__file__).resolve().parents[1]
     load_dotenv(_root / ".env")
 except ImportError:
     pass
@@ -33,21 +33,25 @@ except ImportError:
 try:
     import httpx
 except ImportError:
-    import subprocess
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "httpx", "-q"])
-    import httpx
+    raise SystemExit(
+        "Missing dependency 'httpx'. "
+        "Install via project venv: pip install -r requirements.txt "
+        "(scripts must not pip-install at runtime)"
+    )
 
 try:
     from bs4 import BeautifulSoup
 except ImportError:
     import subprocess
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "beautifulsoup4", "-q"])
+    raise SystemExit(
+        "Missing dependency. Install via project venv: "
+        "pip install -r requirements.txt (no runtime pip install)"
+    )
     from bs4 import BeautifulSoup
 
-PROJECT_ROOT = Path(__file__).resolve().parents[4]
-
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 # ── Paths ──────────────────────────────────────────────────────────────
-PIPELINE_CSV = PROJECT_ROOT / "domains" / "book-dev" / "book-scraping" / "data" / "pipeline.csv"
+PIPELINE_CSV = PROJECT_ROOT / "data" / "pipeline.csv"
 
 # ── Defaults ───────────────────────────────────────────────────────────
 DEFAULT_UPWORK_QUERIES = [

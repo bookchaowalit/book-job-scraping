@@ -30,9 +30,10 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[4]
-SCRIPTS = ROOT / "domains" / "book-dev" / "book-scraping" / "scripts"
-DATA_DIR = ROOT / "domains" / "book-dev" / "book-scraping" / "data"
+# Ensure scripts/ is importable when run as python3 scripts/pipeline_runner.py
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from repo_paths import REPO_ROOT as ROOT, DATA_DIR, SCRIPTS_DIR as SCRIPTS
+
 LOG_DIR = DATA_DIR
 
 # Pipeline steps in order
@@ -99,7 +100,7 @@ PIPELINE_STEPS = [
     },
     {
         "name": "auto_apply",
-        "label": "Auto-Apply (Score 80+)",
+        "label": "Auto-Prepare Drafts (Score 80+, not submitted)",
         "cmd": [sys.executable, str(SCRIPTS / "auto_apply.py"), "--min-score", "80", "--limit", "3", "--send-telegram"],
         "group": "promote",
     },

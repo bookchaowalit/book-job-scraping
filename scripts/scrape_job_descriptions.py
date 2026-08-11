@@ -22,26 +22,31 @@ from pathlib import Path
 try:
     import httpx
 except ImportError:
-    import subprocess
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "httpx", "-q"])
-    import httpx
+    raise SystemExit(
+        "Missing dependency 'httpx'. "
+        "Install via project venv: pip install -r requirements.txt "
+        "(scripts must not pip-install at runtime)"
+    )
 
 try:
     from bs4 import BeautifulSoup
 except ImportError:
     import subprocess
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "beautifulsoup4", "-q"])
+    raise SystemExit(
+        "Missing dependency. Install via project venv: "
+        "pip install -r requirements.txt (no runtime pip install)"
+    )
     from bs4 import BeautifulSoup
 
 try:
     from dotenv import load_dotenv
-    _root = Path(__file__).resolve().parents[4]
+    _root = Path(__file__).resolve().parents[1]
     load_dotenv(_root / ".env")
 except ImportError:
     pass
 
-ROOT = Path(__file__).resolve().parents[4]
-DATA_DIR = ROOT / "domains" / "book-dev" / "book-scraping" / "data"
+ROOT = Path(__file__).resolve().parents[1]
+DATA_DIR = ROOT / "data"
 MATCHED_CSV = DATA_DIR / "matched_jobs.csv"
 JOB_POSTINGS_CSV = DATA_DIR / "job_postings.csv"
 DESCRIPTIONS_DIR = DATA_DIR / "job_descriptions"

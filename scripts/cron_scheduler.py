@@ -35,11 +35,13 @@ from datetime import datetime
 from pathlib import Path
 
 # ── Paths ────────────────────────────────────────────────────────────────────
-ROOT = Path(__file__).resolve().parents[4]
-SCRIPTS_DIR = ROOT / "domains" / "book-dev" / "book-scraping" / "scripts"
-DATA_DIR = ROOT / "domains" / "book-dev" / "book-scraping" / "data"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from repo_paths import REPO_ROOT as ROOT, DATA_DIR, SCRIPTS_DIR
+
 CRON_LOG = DATA_DIR / "cron_scheduler_log.json"
 CRON_MARKER = "# BOOK-PIPELINE-CRON"
+# Legacy book-job-scraping cron is intentionally not auto-installed.
+# Solo Empire cron is separate; do not enable this pipeline until P0 safety is complete.
 
 PYTHON = sys.executable
 

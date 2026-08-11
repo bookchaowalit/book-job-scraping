@@ -20,7 +20,10 @@ try:
 except ImportError:
     print("Installing httpx...")
     import subprocess
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "httpx", "-q"])
+    raise SystemExit(
+        "Missing dependency. Install via project venv: "
+        "pip install -r requirements.txt (no runtime pip install)"
+    )
     import httpx
 
 try:
@@ -28,7 +31,10 @@ try:
 except ImportError:
     print("Installing beautifulsoup4...")
     import subprocess
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "beautifulsoup4", "-q"])
+    raise SystemExit(
+        "Missing dependency. Install via project venv: "
+        "pip install -r requirements.txt (no runtime pip install)"
+    )
     from bs4 import BeautifulSoup
 
 # Load env

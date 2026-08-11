@@ -13,7 +13,6 @@ Usage:
 
 import base64
 import csv
-import dns.resolver
 import json
 import os
 import random
@@ -27,18 +26,19 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
 
-# Load .env
 try:
-    from dotenv import load_dotenv
-    _root = Path(__file__).resolve().parents[6]
-    load_dotenv(_root / ".env")
-except ImportError:
-    pass
+    import dns.resolver  # optional; used only for MX verification
+except ImportError:  # pragma: no cover
+    dns = None  # type: ignore
 
-# Add scripts to path for email_templates import
+# Add scripts to path for email_templates / safety imports
 SCRIPT_DIR = Path(__file__).resolve().parent
-DATA_DIR = SCRIPT_DIR.parent / "data"
 sys.path.insert(0, str(SCRIPT_DIR))
+
+from repo_paths import DATA_DIR, load_env
+from safety import STATUS_SUBMITTED, assert_no_network_send_without_flag, is_live_send_unlocked
+
+load_env()
 
 from email_templates import generate_application_email, is_thai_company
 
@@ -86,6 +86,10 @@ def verify_email_address(email: str, timeout: int = 5) -> dict:
     domain = email.split('@')[1] if '@' in email else None
     if not domain:
         result['reason'] = 'invalid format'
+        return result
+
+    if dns is None:
+        result['reason'] = 'dnspython not installed (pip install -r requirements.txt)'
         return result
     
     # Get MX records
@@ -575,6 +579,11 @@ def main():
     if args.summary:
         _print_pipeline_summary()
         sys.exit(0)
+
+    # Block live send before any side effects (resume checks, Gmail, etc.)
+    if args.send:
+        print(f"Unlock active: {is_live_send_unlocked()}")
+        assert_no_network_send_without_flag(want_send=True, action="application email send")
     
     # Check resume
     resume_path = Path(args.resume) if args.resume else DEFAULT_RESUME
@@ -623,6 +632,7 @@ def main():
     # Display
     print(f"\n{'='*70}")
     print(f"  {'DRY RUN' if not args.send else 'SENDING'} EMAIL APPLICATIONS")
+    print(f"  DATA_DIR: {DATA_DIR}")
     print(f"{'='*70}\n")
     
     for i, job in enumerate(jobs, 1):
@@ -658,7 +668,7 @@ def main():
             print("No jobs with verified emails")
             return
     
-    # Send
+    # Send (only after safety gate above)
     if args.send:
         print("\nSending emails...")
         service = load_gmail_service()
@@ -685,7 +695,7 @@ def main():
                     'to': job['contact_email'],
                     'subject': job['email_subject'],
                     'message_id': result['message_id'],
-                    'status': 'sent',
+                    'status': STATUS_SUBMITTED,
                     'sent_at': __import__('datetime').datetime.now().isoformat(),
                 })
                 sent += 1
@@ -715,7 +725,8 @@ def main():
     else:
         print("\n" + "="*70)
         print("  DRY RUN - No emails sent")
-        print("  Use --send to actually send emails")
+        print("  Live send requires --send + BOOK_JOB_LIVE_SEND_ENABLED=1")
+        print("  + BOOK_JOB_SEND_UNLOCK=I_UNDERSTAND_LIVE_SEND")
         print("="*70)
 
 

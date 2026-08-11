@@ -11,9 +11,9 @@ Output:
     - data/briefings/insights.md (human-readable summary)
 
 Usage:
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/generate_insights.py
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/generate_insights.py --niche finance,dev
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/generate_insights.py --min-score 70
+    python3 scripts (book-job-scraping)/scripts/generate_insights.py
+    python3 scripts (book-job-scraping)/scripts/generate_insights.py --niche finance,dev
+    python3 scripts (book-job-scraping)/scripts/generate_insights.py --min-score 70
 """
 
 import argparse
@@ -27,15 +27,48 @@ from typing import Any
 
 try:
     from dotenv import load_dotenv
-    _root = Path(__file__).resolve().parents[4]
+    _root = Path(__file__).resolve().parents[1]
     load_dotenv(_root / ".env")
 except ImportError:
     pass
 
-ROOT = Path(__file__).resolve().parents[4]
+ROOT = Path(__file__).resolve().parents[1]
 BRIEFINGS_DIR = ROOT / "data" / "briefings"
 
+
+def _load_opportunity_client():
+    """Import shared opportunity.v1 client from Solo Empire monorepo utils."""
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        candidate = parent / "infra" / "scripts" / "utils" / "opportunity_client.py"
+        if candidate.is_file():
+            utils = str(candidate.parent)
+            if utils not in sys.path:
+                sys.path.insert(0, utils)
+            import opportunity_client  # type: ignore
+
+            return opportunity_client
+    raise ImportError(
+        "opportunity_client not found — expected solo-empire/infra/scripts/utils/"
+    )
+
+
+def load_opportunity_rows(*, history: bool = False, max_rows: int = 10000) -> list:
+    """Load opportunities via opportunity.v1 API/Gold — never local CSV projections."""
+    try:
+        client = _load_opportunity_client()
+        result = client.fetch_opportunities(
+            limit=min(max_rows, 500),
+            history=history,
+            use_gold_fallback=True,
+        )
+        return list(result.items)
+    except Exception:
+        return []
+
+
 # Reuse paths from scraper_dashboard
+# opportunities niche is Track A: opportunity.v1 only (no local CSV path).
 SCRAPER_PATHS = {
     "crypto": {
         "latest": ROOT / "domains" / "book-finance" / "data" / "crypto_prices.csv",
@@ -54,20 +87,23 @@ SCRAPER_PATHS = {
         "history": ROOT / "domains" / "book-finance" / "data" / "defi_yields_history.csv",
     },
     "github_trending": {
-        "latest": ROOT / "domains" / "book-dev" / "book-scraping" / "data" / "exported" / "github_trending.csv",
-        "history": ROOT / "domains" / "book-dev" / "book-scraping" / "data" / "exported" / "github_trending_history.csv",
+        "latest": ROOT / "data" / "exported" / "github_trending.csv",
+        "history": ROOT / "data" / "exported" / "github_trending_history.csv",
     },
     "jobs": {
-        "latest": ROOT / "domains" / "book-dev" / "book-scraping" / "data" / "job_postings.csv",
-        "history": ROOT / "domains" / "book-dev" / "book-scraping" / "data" / "job_postings_history.csv",
+        "latest": ROOT / "data" / "job_postings.csv",
+        "history": ROOT / "data" / "job_postings_history.csv",
     },
     "flights": {
         "latest": ROOT / "domains" / "book-travel" / "data" / "flight_prices.csv",
         "history": ROOT / "domains" / "book-travel" / "data" / "flight_prices_history.csv",
     },
     "opportunities": {
-        "latest": ROOT / "domains" / "book-dev" / "book-scraping" / "opportunities" / "data" / "money_opportunities.csv",
-        "history": ROOT / "domains" / "book-dev" / "book-scraping" / "opportunities" / "data" / "money_opportunities_history.csv",
+        "source_kind": "opportunity_v1_api",
+        "schema_version": "opportunity.v1",
+        "base_url": "http://127.0.0.1:8108",
+        "latest": None,  # never open opportunity CSV projections
+        "history": None,
     },
     "property": {
         "latest": ROOT / "domains" / "book-real-estate" / "data" / "property_listings.csv",
@@ -695,8 +731,16 @@ def generate_insights(niches: list = None, min_score: int = 0) -> dict:
             continue
 
         paths = SCRAPER_PATHS[niche]
-        latest = load_csv(paths["latest"])
-        history = load_csv(paths["history"], max_rows=5000)
+        if paths.get("source_kind") == "opportunity_v1_api":
+            latest = load_opportunity_rows(history=False, max_rows=500)
+            history = load_opportunity_rows(history=True, max_rows=5000)
+        else:
+            latest = load_csv(paths["latest"]) if paths.get("latest") else []
+            history = (
+                load_csv(paths["history"], max_rows=5000)
+                if paths.get("history")
+                else []
+            )
 
         extractor = EXTRACTORS.get(niche)
         if not extractor:

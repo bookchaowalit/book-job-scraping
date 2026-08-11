@@ -22,13 +22,13 @@ from urllib.parse import urlparse, parse_qs
 
 try:
     from dotenv import load_dotenv
-    _root = Path(__file__).resolve().parents[4]
+    _root = Path(__file__).resolve().parents[1]
     load_dotenv(_root / ".env")
 except ImportError:
     pass
 
-ROOT = Path(__file__).resolve().parents[4]
-DATA_DIR = ROOT / "domains" / "book-dev" / "book-scraping" / "data"
+ROOT = Path(__file__).resolve().parents[1]
+DATA_DIR = ROOT / "data"
 TRACKER_CSV = DATA_DIR / "apply_tracker.csv"
 MATCHED_CSV = DATA_DIR / "matched_jobs.csv"
 

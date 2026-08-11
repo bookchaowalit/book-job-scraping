@@ -20,14 +20,14 @@ from datetime import datetime
 
 try:
     from dotenv import load_dotenv
-    _root = Path(__file__).resolve().parents[4]
+    _root = Path(__file__).resolve().parents[1]
     load_dotenv(_root / ".env")
 except ImportError:
     pass
 
-PROJECT_ROOT = Path(__file__).resolve().parents[4]
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS_DIR = Path(__file__).resolve().parent
-DATA_DIR = PROJECT_ROOT / "domains" / "book-dev" / "book-scraping" / "data"
+DATA_DIR = PROJECT_ROOT / "data"
 
 def run_command(cmd, description):
     """Run a command and report results."""

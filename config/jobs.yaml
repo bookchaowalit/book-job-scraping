@@ -458,8 +458,8 @@ jobs:
     params:
       min_score: 5
       top: 15
-      input: "domains/book-dev/book-scraping/data/job_postings.csv"
-      output: "domains/book-dev/book-scraping/data/matched_jobs.csv"
+      input: "data/job_postings.csv"
+      output: "data/matched_jobs.csv"
 
   # ── MONEY OPPORTUNITIES (daily) ─────────────────────────────
   - name: money_opportunities

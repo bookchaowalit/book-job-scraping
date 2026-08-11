@@ -30,7 +30,10 @@ try:
 except ImportError:
     print("Installing dependencies...")
     import subprocess
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "requests", "beautifulsoup4"])
+    raise SystemExit(
+        "Missing dependency. Install via project venv: "
+        "pip install -r requirements.txt (no runtime pip install)"
+    )
     import requests
     from bs4 import BeautifulSoup
 

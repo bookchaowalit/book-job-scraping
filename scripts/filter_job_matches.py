@@ -5,7 +5,7 @@ Scores and ranks jobs from job_postings.csv by relevance to your skills.
 Outputs a filtered, ranked report for immediate bidding.
 
 Outputs:
-    - domains/product/engineering/book-dev/book-scraping/data/matched_jobs.csv (ranked matches)
+    - scripts (book-job-scraping)/data/matched_jobs.csv (ranked matches)
     - Console report with top matches and bid-ready links
 
 Usage:
@@ -25,13 +25,13 @@ from pathlib import Path
 
 try:
     from dotenv import load_dotenv
-    _root = Path(__file__).resolve().parents[4]
+    _root = Path(__file__).resolve().parents[1]
     load_dotenv(_root / ".env")
 except ImportError:
     pass
 
-ROOT = Path(__file__).resolve().parents[4]
-OUTPUT_DIR = ROOT / "domains" / "book-dev" / "book-scraping" / "data"
+ROOT = Path(__file__).resolve().parents[1]
+OUTPUT_DIR = ROOT / "data"
 
 # ─── Tech Stack Profile ───────────────────────────────────────────────
 # Primary skills (high weight) — core competencies to bid on

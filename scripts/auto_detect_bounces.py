@@ -25,13 +25,16 @@ from pathlib import Path
 # Load .env
 try:
     from dotenv import load_dotenv
-    _root = Path(__file__).resolve().parents[6]
+    _root = Path(__file__).resolve().parents[1]
     _env_path = _root / ".env"
     if _env_path.exists():
         load_dotenv(_env_path)
     else:
-        # Try workspace root
-        load_dotenv("/home/bookchaowalit/book-everything/solo-empire/.env")
+        for parent in list(_root.parents)[:8]:
+            candidate = parent / ".env"
+            if candidate.exists():
+                load_dotenv(candidate)
+                break
 except ImportError:
     pass
 

@@ -20,7 +20,7 @@ from pathlib import Path
 
 try:
     from dotenv import load_dotenv
-    _root = Path(__file__).resolve().parents[4]
+    _root = Path(__file__).resolve().parents[1]
     load_dotenv(_root / ".env")
 except ImportError:
     pass
@@ -28,11 +28,13 @@ except ImportError:
 try:
     import httpx
 except ImportError:
-    import subprocess
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "httpx", "-q"])
-    import httpx
+    raise SystemExit(
+        "Missing dependency 'httpx'. "
+        "Install via project venv: pip install -r requirements.txt "
+        "(scripts must not pip-install at runtime)"
+    )
 
-ROOT = Path(__file__).resolve().parents[4]
+ROOT = Path(__file__).resolve().parents[1]
 BRIEFINGS_DIR = ROOT / "data" / "briefings"
 DASHBOARD_JSON = BRIEFINGS_DIR / "scraper_dashboard.json"
 

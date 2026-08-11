@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-Auto-Apply Pipeline — Auto-submit applications for high-scoring jobs (80+).
+Auto-Apply Pipeline — prepare application materials for high-scoring jobs (80+).
 
-Generates tailored resume + cover letter, saves email draft, and logs status.
-Supports dry-run mode and Telegram notifications.
+Generates tailored resume + cover letter, saves email draft, and logs status as
+**prepared** (not submitted). This script does not send applications.
 
 Usage:
-    python3 auto_apply.py                        # Auto-apply for score 80+ jobs
+    python3 auto_apply.py                        # Prepare drafts for score 80+ jobs
     python3 auto_apply.py --min-score 70         # Lower threshold
-    python3 auto_apply.py --limit 5              # Max 5 applications per run
+    python3 auto_apply.py --limit 5              # Max 5 preparations per run
     python3 auto_apply.py --dry-run              # Preview only
     python3 auto_apply.py --send-telegram        # Notify via Telegram
 """
@@ -24,20 +24,19 @@ from pathlib import Path
 try:
     import httpx
 except ImportError:
-    import subprocess
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "httpx", "-q"])
-    import httpx
+    raise SystemExit(
+        "Missing dependency 'httpx'. "
+        "Install via project venv: pip install -r requirements.txt "
+        "(scripts must not pip-install at runtime)"
+    )
 
-try:
-    from dotenv import load_dotenv
-    _root = Path(__file__).resolve().parents[4]
-    load_dotenv(_root / ".env")
-except ImportError:
-    pass
+from repo_paths import REPO_ROOT as ROOT, DATA_DIR, SCRIPTS_DIR, ensure_data_dirs, load_env
+from safety import (
+    STATUS_PREPARED,
+    is_already_handled,
+)
 
-ROOT = Path(__file__).resolve().parents[4]
-DATA_DIR = ROOT / "domains" / "book-dev" / "book-scraping" / "data"
-SCRIPTS_DIR = ROOT / "domains" / "book-dev" / "book-scraping" / "scripts"
+load_env()
 
 MATCHED_CSV = DATA_DIR / "matched_jobs.csv"
 APPLY_TRACKER = DATA_DIR / "apply_tracker.csv"
@@ -48,6 +47,8 @@ AUTO_APPLY_LOG = DATA_DIR / "auto_apply_log.json"
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "5255551291")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+
+sys.path.insert(0, str(SCRIPTS_DIR))
 
 # Import previous employers blocklist
 try:
@@ -61,8 +62,6 @@ def is_previous_employer(company: str) -> bool:
     c = company.lower().strip()
     return any(pe in c or c in pe for pe in PREVIOUS_EMPLOYERS)
 
-sys.path.insert(0, str(SCRIPTS_DIR))
-
 
 def load_csv(path: Path) -> list:
     if not path.exists():
@@ -71,28 +70,31 @@ def load_csv(path: Path) -> list:
         return list(csv.DictReader(f))
 
 
-def get_applied_urls() -> set:
-    """Get URLs already applied to."""
+def get_handled_urls() -> set:
+    """URLs already prepared or submitted (skip re-preparation)."""
     tracker = load_csv(APPLY_TRACKER)
-    return {row.get("url", "").lower() for row in tracker
-            if row.get("status") in ("applied", "auto_applied")}
+    return {
+        row.get("url", "").lower()
+        for row in tracker
+        if is_already_handled(row.get("status"))
+    }
 
 
 def get_candidate_jobs(min_score: int = 80) -> list:
-    """Get high-scoring jobs that haven't been applied to yet."""
+    """Get high-scoring jobs that have not been prepared/submitted yet."""
     matched = load_csv(MATCHED_CSV)
     if not matched:
         return []
 
-    applied = get_applied_urls()
+    handled = get_handled_urls()
 
-    # Also check auto_apply_log
-    auto_applied = set()
+    # Also check auto_apply_log (prepared materials)
+    already_prepared = set()
     if AUTO_APPLY_LOG.exists():
         with open(AUTO_APPLY_LOG, "r") as f:
             log = json.load(f)
-            for entry in log.get("applied", []):
-                auto_applied.add(entry.get("url", "").lower())
+            for entry in log.get("prepared", log.get("applied", [])):
+                already_prepared.add(entry.get("url", "").lower())
 
     candidates = []
     for job in matched:
@@ -104,7 +106,7 @@ def get_candidate_jobs(min_score: int = 80) -> list:
 
         if score < min_score:
             continue
-        if url in applied or url in auto_applied:
+        if url in handled or url in already_prepared:
             continue
         if not url:
             continue
@@ -267,22 +269,26 @@ def save_resume_snippet(job: dict, content: str) -> Path:
 
 
 def log_auto_apply(job: dict, draft_path: Path, resume_path: Path):
-    """Log auto-apply action."""
+    """Log preparation action (draft/resume only — not a live submission)."""
     log = {}
     if AUTO_APPLY_LOG.exists():
         with open(AUTO_APPLY_LOG, "r") as f:
             log = json.load(f)
-    if "applied" not in log:
-        log["applied"] = []
-    log["applied"].append({
+    if "prepared" not in log:
+        # Migrate legacy key if present
+        log["prepared"] = list(log.get("applied", []))
+    log["prepared"].append({
         "url": job.get("url", ""),
         "title": job.get("title", ""),
         "company": job.get("company", ""),
         "score": job.get("score", 0),
         "draft_file": str(draft_path),
         "resume_file": str(resume_path),
-        "applied_at": datetime.now().isoformat(),
+        "status": STATUS_PREPARED,
+        "prepared_at": datetime.now().isoformat(),
     })
+    # Keep legacy key empty/outdated intentionally; readers should prefer "prepared"
+    log.setdefault("applied", [])
     with open(AUTO_APPLY_LOG, "w") as f:
         json.dump(log, f, indent=2)
 
@@ -330,16 +336,16 @@ def send_telegram(message: str) -> bool:
         return False
 
 
-def build_telegram_message(applied: list) -> str:
-    """Build Telegram summary of auto-applied jobs."""
+def build_telegram_message(prepared: list) -> str:
+    """Build Telegram summary of prepared (not submitted) applications."""
     lines = [
-        f"<b>🚀 AUTO-APPLY COMPLETE</b>",
+        f"<b>📝 AUTO-PREPARE COMPLETE</b>",
         f"<b>{datetime.now().strftime('%Y-%m-%d %H:%M')}</b>",
         "",
-        f"Submitted {len(applied)} application(s):",
+        f"Prepared {len(prepared)} draft(s) — NOT submitted:",
         "",
     ]
-    for job in applied:
+    for job in prepared:
         lines.append(f"  <b>{job['title'][:40]}</b>")
         lines.append(f"  🏢 {job['company'][:30]} | Score: {job['score']}")
         lines.append(f"  📧 Draft + Resume ready")
@@ -353,38 +359,43 @@ def build_telegram_message(applied: list) -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Auto-Apply Pipeline (Score 80+)")
-    parser.add_argument("--min-score", type=int, default=80, help="Minimum score to auto-apply (default: 80)")
-    parser.add_argument("--limit", type=int, default=3, help="Max applications per run (default: 3)")
+    parser = argparse.ArgumentParser(
+        description="Prepare application drafts for high-scoring jobs (does NOT submit)"
+    )
+    parser.add_argument("--min-score", type=int, default=80, help="Minimum score to prepare (default: 80)")
+    parser.add_argument("--limit", type=int, default=3, help="Max preparations per run (default: 3)")
     parser.add_argument("--send-telegram", action="store_true", help="Notify via Telegram")
-    parser.add_argument("--dry-run", action="store_true", help="Show what would be applied")
+    parser.add_argument("--dry-run", action="store_true", help="Show what would be prepared")
     args = parser.parse_args()
 
     print(f"\n{'='*60}")
-    print(f"  AUTO-APPLY PIPELINE")
+    print(f"  AUTO-PREPARE PIPELINE (drafts only — not submitted)")
     print(f"  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"  DATA_DIR: {DATA_DIR}")
     print(f"{'='*60}\n")
 
     candidates = get_candidate_jobs(min_score=args.min_score)
     print(f"  Found {len(candidates)} candidate jobs (score >= {args.min_score})")
 
     if not candidates:
-        print("  No jobs need applications. All done!")
+        print("  No jobs need preparation. All done!")
         return
 
     to_process = candidates[:args.limit]
 
     if args.dry_run:
-        print(f"\n  DRY RUN — Would auto-apply to:")
+        print(f"\n  DRY RUN — Would prepare drafts for:")
         for job in to_process:
             print(f"    • [{job['score']}] {job['title'][:40]} @ {job['company'][:30]}")
             print(f"      {job['url'][:80]}")
         return
 
-    # Process each job
-    applied = []
+    ensure_data_dirs("email_drafts", "tailored_resumes")
+
+    # Process each job — materials only; status = prepared (not submitted)
+    prepared = []
     for job in to_process:
-        print(f"\n  ▶ Auto-applying: {job['title'][:40]} @ {job['company'][:30]}...")
+        print(f"\n  ▶ Preparing: {job['title'][:40]} @ {job['company'][:30]}...")
 
         # Generate cover letter
         print(f"    Generating cover letter...")
@@ -400,22 +411,27 @@ def main():
         print(f"    ✓ Draft: {draft_path.name}")
         print(f"    ✓ Resume: {resume_path.name}")
 
-        # Log status
+        # Log status as prepared — never "submitted" / "auto_applied"
         log_auto_apply(job, draft_path, resume_path)
-        log_apply_status(job["url"], "auto_applied", f"score={job['score']}, draft={draft_path.name}")
+        log_apply_status(
+            job["url"],
+            STATUS_PREPARED,
+            f"score={job['score']}, draft={draft_path.name}",
+        )
 
         job["draft_file"] = str(draft_path)
         job["resume_file"] = str(resume_path)
-        applied.append(job)
+        prepared.append(job)
 
     print(f"\n{'='*60}")
-    print(f"  SUMMARY: Auto-applied to {len(applied)} job(s)")
+    print(f"  SUMMARY: Prepared {len(prepared)} job(s) (NOT submitted)")
+    print(f"  Status written: {STATUS_PREPARED}")
     print(f"  Drafts: {EMAIL_DRAFTS_DIR}")
     print(f"  Resumes: {RESUMES_DIR}")
     print(f"{'='*60}\n")
 
-    if args.send_telegram and applied:
-        msg = build_telegram_message(applied)
+    if args.send_telegram and prepared:
+        msg = build_telegram_message(prepared)
         send_telegram(msg)
 
 

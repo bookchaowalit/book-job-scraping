@@ -24,15 +24,61 @@ from pathlib import Path
 
 try:
     from dotenv import load_dotenv
-    _root = Path(__file__).resolve().parents[4]
+    _root = Path(__file__).resolve().parents[1]
     load_dotenv(_root / ".env")
 except ImportError:
     pass
 
-ROOT = Path(__file__).resolve().parents[4]
+ROOT = Path(__file__).resolve().parents[1]
 BRIEFINGS_DIR = ROOT / "data" / "briefings"
 
+
+def _load_opportunity_client():
+    """Import shared opportunity.v1 client from Solo Empire monorepo utils."""
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        candidate = parent / "infra" / "scripts" / "utils" / "opportunity_client.py"
+        if candidate.is_file():
+            utils = str(candidate.parent)
+            if utils not in sys.path:
+                sys.path.insert(0, utils)
+            import opportunity_client  # type: ignore
+
+            return opportunity_client
+    raise ImportError(
+        "opportunity_client not found — expected solo-empire/infra/scripts/utils/"
+    )
+
+
+def load_opportunity_items(*, history: bool = False, limit: int = 200) -> tuple[list, dict]:
+    """Load money opportunities via opportunity.v1 (API 8108 / Gold DuckDB). Never CSV."""
+    try:
+        client = _load_opportunity_client()
+        result = client.fetch_opportunities(
+            limit=limit,
+            history=history,
+            use_gold_fallback=True,
+        )
+        meta = {
+            "data_status": result.data_status,
+            "source": result.source,
+            "error_message": result.error_message,
+            "synthesis_run_id": result.synthesis_run_id,
+            "schema_version": result.schema_version,
+        }
+        return list(result.items), meta
+    except Exception as exc:  # noqa: BLE001
+        return [], {
+            "data_status": "unavailable",
+            "source": "none",
+            "error_message": f"Opportunity client unavailable: {type(exc).__name__}",
+            "synthesis_run_id": None,
+            "schema_version": "opportunity.v1",
+        }
+
+
 # ─── Scraper Data Sources ─────────────────────────────────────────────
+# money_opportunities is Track A: opportunity.v1 API only (no local CSV path).
 SCRAPER_SOURCES = {
     "crypto": {
         "name": "Crypto Prices",
@@ -52,8 +98,8 @@ SCRAPER_SOURCES = {
     },
     "github_trending": {
         "name": "GitHub Trending",
-        "latest": ROOT / "domains" / "book-dev" / "book-scraping" / "data" / "exported" / "github_trending.csv",
-        "history": ROOT / "domains" / "book-dev" / "book-scraping" / "data" / "exported" / "github_trending_history.csv",
+        "latest": ROOT / "data" / "exported" / "github_trending.csv",
+        "history": ROOT / "data" / "exported" / "github_trending_history.csv",
         "alert_field": None,
         "alert_threshold": 0,
         "icon": "🐙",
@@ -76,9 +122,9 @@ SCRAPER_SOURCES = {
     },
     "jobs": {
         "name": "Job Postings",
-        "latest": ROOT / "domains" / "book-dev" / "book-scraping" / "data" / "job_postings.csv",
-        "history": ROOT / "domains" / "book-dev" / "book-scraping" / "data" / "job_postings_history.csv",
-        "matched": ROOT / "domains" / "book-dev" / "book-scraping" / "data" / "matched_jobs.csv",
+        "latest": ROOT / "data" / "job_postings.csv",
+        "history": ROOT / "data" / "job_postings_history.csv",
+        "matched": ROOT / "data" / "matched_jobs.csv",
         "alert_field": None,
         "alert_threshold": 0,
         "icon": "💼",
@@ -117,8 +163,11 @@ SCRAPER_SOURCES = {
     },
     "money_opportunities": {
         "name": "Money Opportunities",
-        "latest": ROOT / "domains" / "book-dev" / "book-scraping" / "opportunities" / "data" / "money_opportunities.csv",
-        "history": ROOT / "domains" / "book-dev" / "book-scraping" / "opportunities" / "data" / "money_opportunities_history.csv",
+        "source_kind": "opportunity_v1_api",
+        "base_url": "http://127.0.0.1:8108",
+        "schema_version": "opportunity.v1",
+        "latest": None,  # never open opportunity CSV projections
+        "history": None,
         "alert_field": "trend_score",
         "alert_threshold": 80,
         "icon": "💰",
@@ -215,8 +264,12 @@ def detect_alerts(source_key: str, source: dict, data: list) -> list:
 
 def count_new_items(source_key: str, source: dict) -> dict:
     """Count new items by comparing latest vs history."""
-    latest = load_csv(source["latest"], max_rows=1000)
-    history = load_csv(source["history"], max_rows=5000)
+    if source.get("source_kind") == "opportunity_v1_api":
+        latest, _meta = load_opportunity_items(history=False, limit=1000)
+        history, _ = load_opportunity_items(history=True, limit=5000)
+    else:
+        latest = load_csv(source["latest"], max_rows=1000) if source.get("latest") else []
+        history = load_csv(source["history"], max_rows=5000) if source.get("history") else []
 
     if not latest:
         return {"total": 0, "new": 0, "status": "no_data"}
@@ -308,32 +361,40 @@ def get_stock_summary() -> list:
 
 
 def get_money_opportunities_summary() -> dict:
-    """Get money opportunities summary — top by category and high-value alerts."""
-    data = load_csv(SCRAPER_SOURCES["money_opportunities"]["latest"], max_rows=200)
+    """Get money opportunities summary via opportunity.v1 (never CSV)."""
+    data, meta = load_opportunity_items(history=False, limit=200)
     if not data:
-        return {"total": 0, "high_value": 0, "by_category": {}, "top_opportunities": []}
+        return {
+            "total": 0,
+            "high_value": 0,
+            "by_category": {},
+            "top_opportunities": [],
+            "data_status": meta.get("data_status", "empty"),
+            "input_source": meta.get("source", "none"),
+            "error_message": meta.get("error_message", ""),
+            "synthesis_run_id": meta.get("synthesis_run_id"),
+            "schema_version": meta.get("schema_version", "opportunity.v1"),
+        }
 
-    high_value = [r for r in data if int(r.get("trend_score", 0)) >= 80]
+    high_value = [r for r in data if int(r.get("trend_score", 0) or 0) >= 80]
 
-    # Group by category
     by_category = {}
     for r in data:
-        cat = r.get("category", "other")
-        if cat not in by_category:
-            by_category[cat] = 0
-        by_category[cat] += 1
+        cat = r.get("category", "other") or "other"
+        by_category[cat] = by_category.get(cat, 0) + 1
 
-    # Top 5 by score
     try:
-        sorted_data = sorted(data, key=lambda x: int(x.get("trend_score", 0)), reverse=True)
+        sorted_data = sorted(
+            data, key=lambda x: int(x.get("trend_score", 0) or 0), reverse=True
+        )
     except (ValueError, TypeError):
         sorted_data = data
     top = []
     for r in sorted_data[:5]:
         top.append({
-            "title": r.get("title", "")[:50],
+            "title": (r.get("title", "") or "")[:50],
             "category": r.get("category", ""),
-            "score": int(r.get("trend_score", 0)),
+            "score": int(r.get("trend_score", 0) or 0),
             "source": r.get("source", ""),
             "url": r.get("url", ""),
         })
@@ -343,6 +404,11 @@ def get_money_opportunities_summary() -> dict:
         "high_value": len(high_value),
         "by_category": by_category,
         "top_opportunities": top,
+        "data_status": meta.get("data_status", "ok"),
+        "input_source": meta.get("source", "api"),
+        "error_message": meta.get("error_message", ""),
+        "synthesis_run_id": meta.get("synthesis_run_id"),
+        "schema_version": meta.get("schema_version", "opportunity.v1"),
     }
 
 
@@ -361,18 +427,37 @@ def generate_dashboard(sections: list = None) -> dict:
         if sections and key not in sections:
             continue
 
-        data = load_csv(source["latest"])
-        age = get_file_age(source["latest"])
-        row_count = count_rows(source["latest"])
-
-        # Source status
-        source_info = {
-            "name": source["name"],
-            "icon": source["icon"],
-            "rows": row_count,
-            "last_updated": age,
-            "status": "active" if row_count > 0 else "no_data",
-        }
+        if source.get("source_kind") == "opportunity_v1_api":
+            data, opp_meta = load_opportunity_items(history=False, limit=500)
+            row_count = len(data)
+            status = "active" if row_count > 0 else "no_data"
+            if opp_meta.get("data_status") in {"stale"}:
+                status = "stale"
+            elif opp_meta.get("data_status") in {"error", "unavailable", "malformed"}:
+                status = opp_meta["data_status"]
+            source_info = {
+                "name": source["name"],
+                "icon": source["icon"],
+                "rows": row_count,
+                "last_updated": opp_meta.get("data_status", "unknown"),
+                "status": status,
+                "source_kind": "opportunity_v1_api",
+                "schema_version": source.get("schema_version", "opportunity.v1"),
+                "input_source": opp_meta.get("source"),
+                "synthesis_run_id": opp_meta.get("synthesis_run_id"),
+                "error_message": opp_meta.get("error_message") or "",
+            }
+        else:
+            data = load_csv(source["latest"]) if source.get("latest") else []
+            age = get_file_age(source["latest"]) if source.get("latest") else "never"
+            row_count = count_rows(source["latest"]) if source.get("latest") else 0
+            source_info = {
+                "name": source["name"],
+                "icon": source["icon"],
+                "rows": row_count,
+                "last_updated": age,
+                "status": "active" if row_count > 0 else "no_data",
+            }
 
         # Alerts
         alerts = detect_alerts(key, source, data)

@@ -30,8 +30,8 @@ from match_jobs import score_job, is_relevant_title, is_preferred_location, RELO
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "5255551291")
 
-ROOT = Path(__file__).resolve().parents[4]
-DATA_DIR = ROOT / "domains" / "book-dev" / "book-scraping" / "data"
+ROOT = Path(__file__).resolve().parents[1]
+DATA_DIR = ROOT / "data"
 INPUT_CSV = DATA_DIR / "job_postings.csv"
 MATCHED_CSV = DATA_DIR / "matched_jobs.csv"
 APPLY_LOG = DATA_DIR / "apply_tracker.csv"

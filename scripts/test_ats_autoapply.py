@@ -6,7 +6,7 @@ import json
 import time
 from pathlib import Path
 
-BASE = "/home/bookchaowalit/book-everything/solo-empire/domains/product/engineering/book-dev/book-scraping"
+BASE = "/home/bookchaowalit/book/solo-empire/projects/product/engineering/book-dev/github/bookchaowalit/book-apps/tools/book-job-scraping"
 TRACKER_FILE = f"{BASE}/data/apply_tracker.csv"
 
 def test_greenhouse_api():

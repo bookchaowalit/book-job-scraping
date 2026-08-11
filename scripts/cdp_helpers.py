@@ -15,9 +15,11 @@ from pathlib import Path
 try:
     import websockets
 except ImportError:
-    import subprocess
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "websockets", "-q", "--break-system-packages"])
-    import websockets
+    raise SystemExit(
+        "Missing dependency 'websockets'. "
+        "Install via project venv: pip install -r requirements.txt "
+        "(scripts must not pip-install at runtime)"
+    )
 
 CDP_URL = "ws://127.0.0.1:9222"
 _msg_id = 0

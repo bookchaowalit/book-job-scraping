@@ -8,7 +8,7 @@ from pathlib import Path
 # Files
 MAY_FILE = "/home/bookchaowalit/.qoder/cache/projects/solo-empire-b022c04b/agent-tools/task-f7f/4b9a8a7a.txt"
 APRIL_FILE = "/home/bookchaowalit/.qoder/cache/projects/solo-empire-b022c04b/agent-tools/task-f7f/1ce73e6d.txt"
-CONTACTS_FILE = "/home/bookchaowalit/book-everything/solo-empire/domains/product/engineering/book-dev/book-scraping/data/contact_emails.json"
+CONTACTS_FILE = "/home/bookchaowalit/book/solo-empire/projects/product/engineering/book-dev/github/bookchaowalit/book-apps/tools/book-job-scraping/data/contact_emails.json"
 
 def deobfuscate_email(text):
     """Convert [at] to @ and [dot] to ."""
@@ -123,7 +123,7 @@ def main():
     print(f"New contacts (not in existing): {len(new_contacts)}")
     
     # Save to file for review
-    output_file = "/home/bookchaowalit/book-everything/solo-empire/domains/product/engineering/book-dev/book-scraping/data/hn_may_april_contacts.json"
+    output_file = "/home/bookchaowalit/book/solo-empire/projects/product/engineering/book-dev/github/bookchaowalit/book-apps/tools/book-job-scraping/data/hn_may_april_contacts.json"
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(new_contacts, f, indent=2)
     

@@ -21,7 +21,10 @@ try:
 except ImportError:
     print("Installing requests...")
     import subprocess
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "requests", "-q"])
+    raise SystemExit(
+        "Missing dependency. Install via project venv: "
+        "pip install -r requirements.txt (no runtime pip install)"
+    )
     import requests
 
 # Load env

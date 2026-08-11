@@ -26,21 +26,19 @@ from pathlib import Path
 try:
     import httpx
 except ImportError:
-    import subprocess
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "httpx", "-q"])
-    import httpx
-
-try:
-    from dotenv import load_dotenv
-    _root = Path(__file__).resolve().parents[4]
-    load_dotenv(_root / ".env")
-except ImportError:
-    pass
+    raise SystemExit(
+        "Missing dependency 'httpx'. "
+        "Install via project venv: pip install -r requirements.txt "
+        "(scripts must not pip-install at runtime)"
+    )
 
 # ── Paths ────────────────────────────────────────────────────────
 SCRIPT_DIR = Path(__file__).resolve().parent
-DATA_DIR = SCRIPT_DIR.parent / "data"
-ROOT = SCRIPT_DIR.parent.parent.parent.parent  # solo-empire
+sys.path.insert(0, str(SCRIPT_DIR))
+from repo_paths import REPO_ROOT as ROOT, DATA_DIR, load_env
+from safety import assert_no_network_send_without_flag
+
+load_env()
 FOLLOWUP_EMAILS_DIR = DATA_DIR / "followup_emails"
 SENT_LOG = DATA_DIR / "auto_send_log.json"
 APPLY_TRACKER = DATA_DIR / "apply_tracker.csv"
@@ -638,6 +636,9 @@ def main():
             SENT_LOG.unlink()
         print("✅ Sent log reset")
         return
+
+    if args.send:
+        assert_no_network_send_without_flag(want_send=True, action="auto_send_email")
 
     dry_run = not args.send
     run_auto_send(

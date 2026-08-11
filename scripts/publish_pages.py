@@ -7,11 +7,11 @@ Reads generated HTML from data/pages/ and deploys to:
   - Cloudflare Worker: https://solo-empire-insights.workers.dev
 
 Usage:
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/publish_pages.py
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/publish_pages.py --target github
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/publish_pages.py --target cloudflare
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/publish_pages.py --dry-run
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/publish_pages.py --generate-only
+    python3 scripts (book-job-scraping)/scripts/publish_pages.py
+    python3 scripts (book-job-scraping)/scripts/publish_pages.py --target github
+    python3 scripts (book-job-scraping)/scripts/publish_pages.py --target cloudflare
+    python3 scripts (book-job-scraping)/scripts/publish_pages.py --dry-run
+    python3 scripts (book-job-scraping)/scripts/publish_pages.py --generate-only
 """
 
 import argparse
@@ -26,12 +26,12 @@ from pathlib import Path
 
 try:
     from dotenv import load_dotenv
-    _root = Path(__file__).resolve().parents[4]
+    _root = Path(__file__).resolve().parents[1]
     load_dotenv(_root / ".env")
 except ImportError:
     pass
 
-ROOT = Path(__file__).resolve().parents[4]
+ROOT = Path(__file__).resolve().parents[1]
 PAGES_DIR = ROOT / "data" / "pages"
 WORKER_DIR = ROOT / "data" / "insights-worker"
 DEFAULT_WORKER_NAME = "solo-empire-insights"

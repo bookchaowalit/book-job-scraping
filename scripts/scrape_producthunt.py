@@ -34,8 +34,8 @@ except ImportError:
     print("ERROR: beautifulsoup4 required. Install: pip install beautifulsoup4")
     sys.exit(1)
 
-ROOT = Path(__file__).resolve().parents[4]  # solo-empire/
-OUTPUT_DIR = ROOT / "domains" / "book-dev" / "book-scraping" / "data" / "exported"
+ROOT = Path(__file__).resolve().parents[1]  # book-job-scraping repo root
+OUTPUT_DIR = ROOT / "data" / "exported"
 
 PH_FEED = "https://www.producthunt.com/feed"
 

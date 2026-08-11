@@ -1,12 +1,19 @@
-# Book Scraping — Multi-Engine Web Data Platform
+# Book Job Scraping — Multi-Engine Capture + Job Pipeline
 
-Hexagonal-architecture scraping platform with 5 engines, scheduled jobs, and MCP data-as-a-service.
+Hexagonal-architecture scraping platform with 5 engines, scheduled jobs,
+MCP search over local storage, and a **job application prep** pipeline.
 
-**Location:** `domains/product/engineering/book-dev/book-scraping/`  
+**Canonical nested path:**  
+`projects/product/engineering/book-dev/github/bookchaowalit/book-apps/tools/book-job-scraping/`  
 **Architecture:** Hexagonal (Ports & Adapters)  
 **Engines:** httpx+BS4, Playwright, Selenium, Scrapy, RSS  
 **Categories:** Jobs, E-commerce, Restaurants, Directories, News, Property  
-**Output:** MCP server → sell data as a service to Thai SMEs
+
+**Producer contract / safety:** see [`PRODUCT.md`](./PRODUCT.md) and
+[`SAFETY.md`](./SAFETY.md). This repo is **collection + prep only** —
+durable lake analytics live in sibling **`book-job-data`** (ingest capture
+CSVs → Bronze `job.v1` → API `:8109`). Do not write Solo Empire SQLite or
+another app DB from here.
 
 ---
 
@@ -227,6 +234,11 @@ See `requirements.txt`. Key packages:
 
 ## Job Application Automation Pipeline
 
+> **Safety (2026-08):** Live send/apply is **disabled by default**. See [`SAFETY.md`](./SAFETY.md).
+> Paths resolve to this repo’s `data/` directory (not the old monorepo `domains/book-dev/book-scraping` layout).
+> `auto_apply.py` only **prepares** drafts (`status=prepared`); it does not submit applications.
+> ATS/email live paths require explicit unlock env vars in addition to `--apply` / `--send`.
+
 The job scraping pipeline automates discovery, matching, and application tracking for remote dev jobs.
 
 ### Data Flow
@@ -290,17 +302,16 @@ Current data quality (as of 2026-07-05):
 ### Running the Pipeline
 
 ```bash
-# Scrape fresh job postings
-python3 domains/product/engineering/book-dev/book-scraping/scripts/scrape_job_postings.py
+# From this repo root, with project venv activated
+python3 scripts/scrape_job_postings.py
+python3 scripts/auto_seed_tracker.py
+python3 scripts/pipeline_runner.py --dry-run
 
-# Seed tracker with new matched jobs
-python3 domains/product/engineering/book-dev/book-scraping/scripts/auto_seed_tracker.py
+# Prepare drafts only (does not submit)
+python3 scripts/auto_apply.py --dry-run
 
-# Find recruiter emails for discovered jobs
-python3 domains/product/engineering/book-dev/book-scraping/scripts/find_recruiter_emails.py
-
-# Send application emails
-python3 domains/product/engineering/book-dev/book-scraping/scripts/send_application_emails.py
+# Application emails — dry-run by default; live send is gated (see SAFETY.md)
+python3 scripts/send_application_emails.py
 ```
 
 ---

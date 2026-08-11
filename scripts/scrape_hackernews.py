@@ -25,8 +25,8 @@ except ImportError:
     print("ERROR: httpx required. Install: pip install httpx")
     sys.exit(1)
 
-ROOT = Path(__file__).resolve().parents[4]  # solo-empire/
-OUTPUT_DIR = ROOT / "domains" / "book-dev" / "book-scraping" / "data" / "exported"
+ROOT = Path(__file__).resolve().parents[1]  # book-job-scraping repo root
+OUTPUT_DIR = ROOT / "data" / "exported"
 
 HN_API = "https://hacker-news.firebaseio.com/v0"
 HN_SEARCH = "https://hn.algolia.com/api/v1"

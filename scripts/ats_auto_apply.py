@@ -38,8 +38,11 @@ CHROME_PATHS = [
     Path("/usr/bin/chromium"),
 ]
 
-ROOT = Path(__file__).resolve().parents[4]
-DATA_DIR = ROOT / "domains" / "book-dev" / "book-scraping" / "data"
+from repo_paths import REPO_ROOT as ROOT, DATA_DIR, load_env
+from safety import STATUS_SUBMITTED, assert_no_network_send_without_flag, is_live_send_unlocked
+
+load_env()
+
 APPLY_TRACKER = DATA_DIR / "apply_tracker.csv"
 ATS_APPLICATION_LOG = DATA_DIR / "ats_application_log.json"
 RESUME_PDF = DATA_DIR / "Chaowalit_Greepoke_FullStack_Developer.pdf"
@@ -117,21 +120,36 @@ def kill_chrome():
 
 
 # ─── CDP Helper ──────────────────────────────────────────────────────────────
+# websockets is only required for live --apply (CDP). --test / dry-run must work
+# with a minimal Python so safety gates are testable without the full venv.
 
-try:
-    import websockets
-except ImportError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "websockets", "-q", "--break-system-packages"])
-    import websockets
 
-try:
-    import httpx
-except ImportError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "httpx", "-q", "--break-system-packages"])
-    import httpx
+def _require_httpx():
+    try:
+        import httpx
+    except ImportError as exc:
+        raise SystemExit(
+            "Missing dependency 'httpx'. "
+            "Install via project venv: pip install -r requirements.txt "
+            "(scripts must not pip-install at runtime)"
+        ) from exc
+    return httpx
+
+
+def _require_websockets():
+    try:
+        import websockets
+    except ImportError as exc:
+        raise SystemExit(
+            "Missing dependency 'websockets'. "
+            "Install via project venv: pip install -r requirements.txt "
+            "(scripts must not pip-install at runtime)"
+        ) from exc
+    return websockets
 
 
 async def _get_ws_url():
+    httpx = _require_httpx()
     async with httpx.AsyncClient() as client:
         resp = await client.get(f"http://{CDP_HOST}:{CDP_PORT}/json", timeout=10)
         targets = resp.json()
@@ -149,6 +167,7 @@ class CDPSession:
         self._msg_id = 0
 
     async def connect(self):
+        websockets = _require_websockets()
         self.ws = await websockets.connect(self.ws_url, max_size=50 * 1024 * 1024)
         await self.send("Page.enable")
         await self.send("Runtime.enable")
@@ -1543,23 +1562,44 @@ async def apply_lever_cdp(session: CDPSession, job: dict) -> dict:
 # ─── Main ────────────────────────────────────────────────────────────────────
 
 async def async_main():
-    parser = argparse.ArgumentParser(description="ATS Auto-Apply via CDP browser automation")
-    parser.add_argument("--apply", action="store_true", help="Actually submit applications")
+    parser = argparse.ArgumentParser(
+        description="ATS Auto-Apply via CDP browser automation (live send gated)"
+    )
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Actually submit applications (also requires env unlock — see safety.py)",
+    )
     parser.add_argument("--limit", type=int, default=10, help="Max applications per run")
     parser.add_argument("--company", type=str, help="Apply to specific company only")
     parser.add_argument("--ats", type=str, choices=["greenhouse", "lever"], help="Filter by ATS type")
-    parser.add_argument("--test", action="store_true", help="Test on first job only (no logging)")
+    parser.add_argument(
+        "--test",
+        action="store_true",
+        help="Preview first matching job only (NEVER submits; dry-run)",
+    )
     args = parser.parse_args()
+
+    # --test is always dry-run. Live submit requires --apply + safety unlock.
+    live_submit = bool(args.apply) and not args.test
 
     print(f"\n{'='*70}")
     print(f"  ATS AUTO-APPLY (CDP Browser Automation)")
     print(f"  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"  Mode: {'LIVE' if args.apply else 'DRY RUN'}{'  TEST' if args.test else ''}")
+    print(f"  DATA_DIR: {DATA_DIR}")
+    if args.test:
+        mode = "TEST (preview only — no submit)"
+    elif live_submit:
+        mode = "LIVE SUBMIT"
+    else:
+        mode = "DRY RUN"
+    print(f"  Mode: {mode}")
+    print(f"  Unlock active: {is_live_send_unlocked()}")
     print(f"{'='*70}\n")
 
     if not RESUME_PDF.exists():
         print(f"✗ Resume PDF not found: {RESUME_PDF}")
-        return
+        print("  (dry-run/test may continue without resume for candidate listing)")
 
     # Get candidates
     candidates = get_ats_candidates()
@@ -1575,12 +1615,26 @@ async def async_main():
     for ats, jobs in by_ats.items():
         print(f"  {ats.upper()}: {len(jobs)} jobs")
 
-    if not args.apply and not args.test:
-        print(f"\n  DRY RUN — run with --apply to submit.\n")
-        print("  Sample jobs:")
-        for c in candidates[:5]:
+    # Dry-run / --test: list only, never open browser or click submit
+    if not live_submit:
+        sample = candidates[:1] if args.test else candidates[:5]
+        label = "TEST sample" if args.test else "DRY RUN sample"
+        print(f"\n  {label} — no browser, no submit.")
+        if not args.apply:
+            print("  To submit later: --apply + BOOK_JOB_LIVE_SEND_ENABLED=1")
+            print("  + BOOK_JOB_SEND_UNLOCK=I_UNDERSTAND_LIVE_SEND")
+        elif args.test:
+            print("  Note: --test forces preview-only even if --apply is set.")
+        for c in sample:
             print(f"    • {c['title'][:50]} @ {c['company'][:30]}")
             print(f"      {c['url'][:80]}")
+        return
+
+    # Live path — hard safety gate
+    assert_no_network_send_without_flag(want_send=True, action="ATS apply")
+
+    if not RESUME_PDF.exists():
+        print(f"✗ Resume PDF not found: {RESUME_PDF}")
         return
 
     # Ensure Chrome is running
@@ -1594,10 +1648,7 @@ async def async_main():
     applied_urls = {entry["url"] for entry in log.get("applied", [])}
 
     to_process = [c for c in candidates if c["url"] not in applied_urls]
-    if args.test:
-        to_process = to_process[:1]
-    else:
-        to_process = to_process[:args.limit]
+    to_process = to_process[: args.limit]
 
     print(f"\nSubmitting {len(to_process)} applications...\n")
 
@@ -1629,40 +1680,40 @@ async def async_main():
 
         if result.get("success"):
             print(f"  ✓ Application submitted!")
-            if not args.test:
-                log["applied"].append({
-                    "url": job["url"],
-                    "title": job["title"],
-                    "company": job["company"],
-                    "ats": job["ats"],
-                    "job_id": job["job_id"],
-                    "applied_at": datetime.now().isoformat(),
-                })
-                update_tracker_status(job["url"], "applied", f"Applied via {job['ats']} CDP")
+            log["applied"].append({
+                "url": job["url"],
+                "title": job["title"],
+                "company": job["company"],
+                "ats": job["ats"],
+                "job_id": job["job_id"],
+                "applied_at": datetime.now().isoformat(),
+            })
+            update_tracker_status(
+                job["url"],
+                STATUS_SUBMITTED,
+                f"Submitted via {job['ats']} CDP",
+            )
             success_count += 1
         else:
             print(f"  ✗ Failed: {result.get('error', 'Unknown error')}")
             if result.get("page_content_preview"):
                 print(f"    Page: {result['page_content_preview'][:150]}")
-            if not args.test:
-                log["failed"].append({
-                    "url": job["url"],
-                    "title": job["title"],
-                    "company": job["company"],
-                    "ats": job["ats"],
-                    "error": result.get("error"),
-                    "detail": {k: v for k, v in result.items() if k not in ("success", "error")},
-                    "failed_at": datetime.now().isoformat(),
-                })
+            log["failed"].append({
+                "url": job["url"],
+                "title": job["title"],
+                "company": job["company"],
+                "ats": job["ats"],
+                "error": result.get("error"),
+                "detail": {k: v for k, v in result.items() if k not in ("success", "error")},
+                "failed_at": datetime.now().isoformat(),
+            })
             fail_count += 1
 
         if i < len(to_process):
             time.sleep(3)
         print()
 
-    # Save log
-    if not args.test:
-        save_ats_log(log)
+    save_ats_log(log)
 
     print(f"{'='*70}")
     print(f"  SUMMARY")

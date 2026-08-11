@@ -4,15 +4,15 @@ Scrape remote job postings from multiple boards (WeWorkRemotely, RemoteOK, etc.)
 Detects new high-paying dev jobs and matches against your skills.
 
 Outputs:
-    - domains/product/engineering/book-dev/book-scraping/data/job_postings.csv (latest snapshot)
-    - domains/product/engineering/book-dev/book-scraping/data/job_postings_history.csv (appended)
+    - scripts (book-job-scraping)/data/job_postings.csv (latest snapshot)
+    - scripts (book-job-scraping)/data/job_postings_history.csv (appended)
     - Console alerts for new high-paying jobs
 
 Usage:
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/scrape_job_postings.py
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/scrape_job_postings.py --boards weworkremotely,remoteok
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/scrape_job_postings.py --keywords "python,react,next.js"
-    python3 domains/product/engineering/book-dev/book-scraping/scripts/scrape_job_postings.py --min-salary 50000
+    python3 scripts (book-job-scraping)/scripts/scrape_job_postings.py
+    python3 scripts (book-job-scraping)/scripts/scrape_job_postings.py --boards weworkremotely,remoteok
+    python3 scripts (book-job-scraping)/scripts/scrape_job_postings.py --keywords "python,react,next.js"
+    python3 scripts (book-job-scraping)/scripts/scrape_job_postings.py --min-salary 50000
 """
 
 import argparse
@@ -25,7 +25,7 @@ from pathlib import Path
 
 try:
     from dotenv import load_dotenv
-    _root = Path(__file__).resolve().parents[4]
+    _root = Path(__file__).resolve().parents[1]
     load_dotenv(_root / ".env")
 except ImportError:
     pass
@@ -40,13 +40,16 @@ try:
     from bs4 import BeautifulSoup
 except ImportError:
     import subprocess
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "beautifulsoup4", "-q"])
+    raise SystemExit(
+        "Missing dependency. Install via project venv: "
+        "pip install -r requirements.txt (no runtime pip install)"
+    )
     from bs4 import BeautifulSoup
 
 import re
 
-ROOT = Path(__file__).resolve().parents[4]
-OUTPUT_DIR = ROOT / "domains" / "book-dev" / "book-scraping" / "data"
+ROOT = Path(__file__).resolve().parents[1]
+OUTPUT_DIR = ROOT / "data"
 
 # Free scraper headers
 HEADERS = {

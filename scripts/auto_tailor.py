@@ -25,9 +25,9 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[4]
-DATA_DIR = ROOT / "domains" / "book-dev" / "book-scraping" / "data"
-SCRIPTS_DIR = ROOT / "domains" / "book-dev" / "book-scraping" / "scripts"
+ROOT = Path(__file__).resolve().parents[1]
+DATA_DIR = ROOT / "data"
+SCRIPTS_DIR = ROOT / "scripts"
 
 MATCHED_CSV = DATA_DIR / "matched_jobs.csv"
 APPLY_TRACKER = DATA_DIR / "apply_tracker.csv"
