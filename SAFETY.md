@@ -1,12 +1,14 @@
 # book-job-scraping — Safety & P0 Status
 
-**Status:** code present, **not production-ready** for live applications.  
-**Last updated:** 2026-08-07
+**Status:** collection scheduler active; **not production-ready** for live applications.
+**Last updated:** 2026-08-24
 
 ## Correct operating statement
 
-- Solo Empire root cron may still be active for other systems.
-- There is **no active cron/process** for this legacy book-job-scraping pipeline unless explicitly installed from this repo.
+- This repository's collection cron is explicitly installed and active every
+  five minutes via `setup_cron.sh`.
+- The cron runs only due collection jobs, then the health monitor, under a
+  `flock` lock. It does not send applications or write the Solo Empire DB.
 - Live email/ATS send paths exist but are **blocked by default**.
 
 ## P0 fixes applied
@@ -19,6 +21,8 @@
    - `BOOK_JOB_SEND_UNLOCK=I_UNDERSTAND_LIVE_SEND`
 4. **`--test` safety** — `ats_auto_apply.py --test` is preview-only (never opens Chrome / never submits).
 5. **Status semantics** — draft generators write `prepared` (legacy `auto_applied` is treated as prepared on read). `submitted` is for real sends only.
+6. **Scheduler safety** — cron uses the repository `.venv`, prevents overlap
+   with `flock`, and runs `pipeline_health_monitor.py` after collection.
 
 ## Do not do (until explicitly ordered)
 
@@ -26,8 +30,9 @@
 - Do not run `auto_send_email.py --send`
 - Do not run `send_followup_emails.py --send`
 - Do not run `ats_auto_apply.py --apply`
-- Do not install `cron_scheduler.py` / `setup_cron.sh` for this pipeline
-- Do not set the unlock env vars casually
+- Do not enable live send/apply or set the unlock env vars casually.
+- `setup_cron.sh` is collection-only; use `setup_cron.sh remove` to pause this
+  repository's scheduler.
 
 ## Local setup
 
@@ -40,11 +45,20 @@ pip install -r requirements.txt
 # pip install httpx pyyaml
 
 # smoke
-python scripts/pipeline_runner.py --dry-run
-python scripts/auto_apply.py --dry-run
-python scripts/ats_auto_apply.py --test
-python -m unittest tests/test_paths_and_safety.py -v
+.venv/bin/python scripts/pipeline_runner.py --dry-run
+.venv/bin/python scripts/pipeline_runner.py --health
+.venv/bin/python scripts/auto_apply.py --dry-run
+.venv/bin/python scripts/ats_auto_apply.py --test
+.venv/bin/python -m unittest tests/test_paths_and_safety.py -v
 ```
+
+## Current verification
+
+On 2026-08-24, the collection health check passed with fresh core artifacts:
+`job_postings.csv`, `matched_jobs.csv`, `apply_tracker.csv`, and
+`job_descriptions.csv`. Optional OpenRouter enrichment and Telegram alerts are
+not required for collection health and remain disabled unless explicitly
+configured.
 
 Runtime data lives in `./data/` (gitignored except `.gitkeep`).
 

@@ -24,6 +24,7 @@ Pipeline Groups:
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -311,9 +312,17 @@ def run_health_check(auto_recover: bool = False):
     issues = []
     warnings = []
 
-    # 1. Check each step's last run
-    print("  Step Status:")
-    for step in PIPELINE_STEPS:
+    # The scraper is a collection-only producer.  Capture data is the default
+    # health contract; the optional AI/notification/application-prep pipeline
+    # can opt into the stricter all-steps gate with PIPELINE_HEALTH_MODE=full.
+    health_mode = os.getenv("PIPELINE_HEALTH_MODE", "collection").strip().lower()
+    steps_to_check = PIPELINE_STEPS if health_mode == "full" else []
+
+    # 1. Check each step's last run when the strict optional pipeline is active
+    print(f"  Step Status ({health_mode} mode):")
+    if not steps_to_check:
+        print("    🟢 Collection scheduler is authoritative; optional pipeline step logs are not required")
+    for step in steps_to_check:
         name = step["name"]
         label = step["label"]
         age = get_log_age(name)

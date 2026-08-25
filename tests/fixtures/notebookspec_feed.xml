@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Notebookspec</title>
+    <link>https://notebookspec.com/web</link>
+    <atom:link href="https://notebookspec.com/web/feed" rel="self" type="application/rss+xml" />
+    <description>Notebook and PC news</description>
+    <item>
+      <title>ตัวอย่างรีวิวโน้ตบุ๊ก</title>
+      <link>https://notebookspec.com/web/885001-sample-notebook-review?utm_source=rss</link>
+      <guid isPermaLink="false">https://notebookspec.com/web/?p=885001</guid>
+      <pubDate>Tue, 25 Aug 2026 05:25:33 +0000</pubDate>
+      <dc:creator>NBS Team</dc:creator>
+      <category>Review</category>
+      <category>Notebook</category>
+      <description><![CDATA[<p>รายละเอียด <strong>รีวิว</strong> ตัวอย่าง</p>]]></description>
+    </item>
+    <item>
+      <title>ข่าวฮาร์ดแวร์ชิ้นที่สอง</title>
+      <link>https://notebookspec.com/web/885002-hardware-news#comments</link>
+      <guid>https://notebookspec.com/web/?p=885002</guid>
+      <pubDate>Tue, 25 Aug 2026 04:10:00 +0000</pubDate>
+      <description>สรุปข่าวฮาร์ดแวร์</description>
+    </item>
+    <item>
+      <title>ลิงก์นอกโดเมนต้องถูกทิ้ง</title>
+      <link>https://example.com/not-notebookspec</link>
+      <guid>external-1</guid>
+      <pubDate>Tue, 25 Aug 2026 03:00:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>ไม่มีวันเผยแพร่ต้องถูกทิ้ง</title>
+      <link>https://notebookspec.com/web/885003-undated</link>
+      <guid>nbs-885003</guid>
+      <description>ไม่มีวันที่</description>
+    </item>
+  </channel>
+</rss>

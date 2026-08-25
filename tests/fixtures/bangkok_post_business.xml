@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Bangkokpost.com : Business</title>
+    <link>https://www.bangkokpost.com/</link>
+    <description>Business news</description>
+    <item>
+      <title>Thai business confidence improves</title>
+      <link>https://www.bangkokpost.com/business/general/1234567/thai-business-confidence-improves?utm_source=rss</link>
+      <pubDate>Tue, 25 Aug 2026 13:45:00 +0700</pubDate>
+      <description><![CDATA[<p>Business confidence <strong>improves</strong> this month.</p>]]></description>
+    </item>
+    <item>
+      <title>Export outlook remains stable</title>
+      <link>https://www.bangkokpost.com/business/economics/7654321/export-outlook-remains-stable</link>
+      <pubDate>Tue, 25 Aug 2026 09:15:00</pubDate>
+      <description>Exporters remain cautious.</description>
+    </item>
+    <item>
+      <title>External link is discarded</title>
+      <link>https://example.com/not-bangkok-post</link>
+      <pubDate>Tue, 25 Aug 2026 08:00:00 +0700</pubDate>
+    </item>
+    <item>
+      <title>No publication date is discarded</title>
+      <link>https://www.bangkokpost.com/business/general/9999999/no-date</link>
+      <description>Missing date.</description>
+    </item>
+  </channel>
+</rss>

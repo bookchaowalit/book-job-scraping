@@ -1,0 +1,12 @@
+{
+  "status": "success",
+  "data": [
+    {"pool": "pool-ethereum-1", "chain": "Ethereum", "project": "fixture-lend", "symbol": "USDC", "tvlUsd": 2500000, "apy": 12.5, "apyBase": 7.5, "apyReward": 5.0, "apyPct1D": 0.5, "apyPct7D": -1.0, "apyPct30D": 2.0, "stablecoin": true, "ilRisk": "no", "exposure": "single-sided", "poolMeta": "fixture"},
+    {"pool": "pool-optimism-1", "chain": "OP Mainnet", "project": "fixture-vault", "symbol": "ETH-USDC", "tvlUsd": 3500000, "apy": 8.2, "apyBase": 3.2, "apyReward": 5.0, "stablecoin": false, "ilRisk": "yes", "exposure": "multi-sided", "poolMeta": "fixture"},
+    {"pool": "pool-solana-1", "chain": "Solana", "project": "fixture-other-chain", "symbol": "SOL", "tvlUsd": 5000000, "apy": 40.0},
+    {"pool": "pool-low-apy", "chain": "Ethereum", "project": "fixture-low", "symbol": "DAI", "tvlUsd": 5000000, "apy": 2.0},
+    {"pool": "pool-low-tvl", "chain": "Ethereum", "project": "fixture-small", "symbol": "USDT", "tvlUsd": 500000, "apy": 20.0},
+    {"pool": "pool-ethereum-1", "chain": "Ethereum", "project": "duplicate", "symbol": "USDC", "tvlUsd": 9000000, "apy": 99.0},
+    {"pool": "pool-bad-apy", "chain": "Base", "project": "fixture-bad", "symbol": "USDC", "tvlUsd": 2500000, "apy": "not-a-number"}
+  ]
+}

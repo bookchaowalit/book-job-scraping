@@ -14,9 +14,14 @@
 set -e
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PYTHON="$(which python3)"
+if [ -x "${PROJECT_DIR}/.venv/bin/python" ]; then
+    PYTHON="${PROJECT_DIR}/.venv/bin/python"
+else
+    PYTHON="$(command -v python3)"
+fi
 CRON_TAG="# book-scraping-scheduler"
 LOG_FILE="${PROJECT_DIR}/data/logs/cron.log"
+LOCK_FILE="${PROJECT_DIR}/data/scraper-scheduler.lock"
 
 install_cron() {
     # Remove existing entry first
@@ -27,9 +32,11 @@ install_cron() {
 
     # Add cron job: run scheduler loop every 5 minutes
     # The scheduler loop itself checks for due jobs every 60s
-    (crontab -l 2>/dev/null || true; echo "*/5 * * * * cd ${PROJECT_DIR} && ${PYTHON} main.py run >> ${LOG_FILE} 2>&1 ${CRON_TAG}") | crontab -
+    (crontab -l 2>/dev/null || true; echo "*/5 * * * * cd ${PROJECT_DIR} && flock -n ${LOCK_FILE} sh -c '${PYTHON} main.py run; ${PYTHON} scripts/pipeline_health_monitor.py' >> ${LOG_FILE} 2>&1 ${CRON_TAG}") | crontab -
 
     echo "✓ Cron job installed — runs every 5 minutes"
+    echo "  Python: ${PYTHON}"
+    echo "  Health: pipeline_health_monitor.py after each collection run"
     echo "  Log: ${LOG_FILE}"
     echo ""
     echo "To verify: crontab -l | grep book-scraping"

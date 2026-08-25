@@ -60,7 +60,7 @@ book-scraping/
 │   └── server.py               # Uses SearchUseCase → StorageAdapter
 │
 ├── config/
-│   └── jobs.yaml               # 10 scheduled jobs with cron expressions
+│   └── jobs.yaml               # 24 configured jobs; 19 enabled in this checkout
 │
 ├── templates/                  # Copy-paste templates for new scrapers
 │   ├── new_httpx_scraper.py
@@ -92,35 +92,168 @@ CLI/Scheduler (inbound)
 
 ## Scheduled Jobs
 
-Jobs are defined in `config/jobs.yaml` and run via `main.py loop`:
+Jobs are defined in `config/jobs.yaml`. The installed local cron invokes
+`main.py run` every five minutes, so only jobs due at that moment are run.
+The scheduler state is written to `data/schedule_state.json`.
 
 | Job | Category | Engine | Schedule | Status |
 |-----|----------|--------|----------|--------|
-| `jobsdb_thai` | jobs | httpx | Daily 9:00 AM | enabled |
-| `jobsdb_remote` | jobs | httpx | Daily 9:00 AM | enabled |
-| `shopee_tech` | ecommerce | playwright | Every 6 hours | enabled |
-| `wongnai_bangkok` | restaurants | playwright | Weekly Sunday | enabled |
-| `thai_business_news` | news | rss | Every 2 hours | enabled |
-| `thai_tech_news` | news | rss | Every 2 hours | enabled |
-| `ddproperty_condos` | property | httpx | Daily 8:00 AM | disabled |
-| `thai_yellow_pages` | directories | httpx | Weekly Monday | disabled |
+| `github_trending` | discovery | httpx | Daily 10:00 AM | enabled |
+| `hackernews` | discovery | httpx | Daily 9:00 AM | enabled |
+| `devto_articles` | discovery | httpx | Daily 10:00 AM | enabled |
+| `producthunt_top` | discovery | httpx | Daily 11:00 AM | enabled |
+| `ai_tools` | ai | Futurepedia HTML | Daily 11:00 AM | enabled |
+| `property_listings` | property | firecrawl | Daily 9:00 AM | enabled |
+| `notebookspec_tech` | news | RSS | Every 6 hours | enabled |
+| `ddproperty_condos` | property | httpx + Thai `__NEXT_DATA__` | Daily 8:00 AM | blocked: httpx Cloudflare 403 |
+| `crypto_prices` | finance | CoinGecko API | Every 4 hours | enabled |
+| `exchange_rates` | finance | Frankfurter API | Every 6 hours | enabled |
+| `stock_prices` | finance | Yahoo Finance chart API | Daily 8:00 AM | enabled |
+| `defi_yields` | finance | DefiLlama pools API | Daily 7:00 AM | enabled |
+| `kaidee_classifieds` | marketplace | Kaidee HTML | Every 6 hours | enabled |
+| `wongnai_bangkok` | businesses | Wongnai HTML | Weekly | enabled |
+| `wongnai_upcountry` | businesses | Wongnai HTML | Weekly | enabled |
+| `matichon_news` | news | Matichon RSS | Every 4 hours | enabled |
+| `thai_business_news` | news | Bangkok Post Business RSS | Every 2 hours | enabled |
+| `thai_tech_news` | news | Blognone Atom | Every 2 hours | enabled |
+| `job_postings` | jobs | firecrawl+httpx | Every 6 hours | enabled |
+| `job_match_filter` | jobs | local | Daily 7:30 AM | enabled |
+| `scraper_dashboard` | operations | local | 8:15, 11:15, 20:15 | enabled |
+
+Four entries remain blocked in the coverage registry: `seo_rankings`,
+`flight_prices`, and `money_opportunities` still need dedicated adapters, while
+`ddproperty_condos` has a Thai `__NEXT_DATA__` parser and fixture but httpx
+collection is still Cloudflare 403. `notebookspec_tech` is enabled after a
+dedicated RSS adapter returned 20 attributed canonical articles.
+`wongnai_upcountry` is enabled after a three-page live HTML smoke returned 28
+unique restaurants across Khon Kaen, Korat, and Pattaya with city attribution.
+`ai_tools` is enabled
+after a six-page Futurepedia HTML smoke returned 62 unique tools with category
+and canonical URL attribution. `wongnai_bangkok` is enabled after a three-page
+live HTML smoke returned 161 unique Bangkok-attributed restaurants.
+`crypto_prices` is enabled after the CoinGecko API smoke returned 20 validated
+rows. `exchange_rates` is enabled after a Frankfurter smoke returned 10
+validated rates, and `stock_prices` is enabled after Yahoo Finance returned 9
+validated ticker rows. `kaidee_classifieds` is enabled after a live HTML smoke
+returned 8 priced canonical listings. Re-enable other sources only after a
+focused smoke test produces a trustworthy contract-compliant result.
+`matichon_news` is enabled after its RSS smoke returned 50 attributed canonical
+articles. `thai_business_news` is enabled after its RSS smoke returned 10
+attributed canonical business articles. `thai_tech_news` is enabled after its
+Blognone RSS smoke returned 10 attributed canonical technology articles.
+`defi_yields` is enabled after a live DefiLlama API smoke returned 200 validated
+pools across all five configured chains with a provider timestamp within the
+24-hour freshness bound.
+
+### Multi-business source coverage
+
+`config/source_coverage.yaml` is the coverage registry for the shared
+acquisition platform. It maps every scheduler job to a business lane, source,
+acquisition channel, output contract, implementation status, and restoration
+priority. The preferred acquisition order is API, CLI, RSS, then scraping;
+`hybrid` entries may combine an API with bounded HTML fallback.
+
+```bash
+python scripts/source_coverage.py --check
+python scripts/source_coverage.py
+python scripts/source_coverage.py --json
+```
+
+The validator fails if coverage drifts from `config/jobs.yaml`, an enabled
+adapter module is missing, or a source has no contract/next action. This keeps
+business coverage broad without making every downstream application scrape
+independently.
+
+The DDproperty adapter writes its collection-only snapshot to
+`data/exported/ddproperty_condos.csv` and reuses the shared property parser;
+it does not own matching, alerts, or downstream business decisions.
+
+The crypto adapter writes the validated raw response to
+`data/exported/crypto_prices_raw.json` and the capture projections to
+`data/exported/crypto_prices.csv` and `data/exported/crypto_history.csv`.
+Lake-first ingestion and the read-only API remain owned by `book-crypto-data`.
+
+The FX adapter writes the validated Frankfurter response to
+`data/exported/exchange_rates_raw.json` and the capture projections to
+`data/exported/exchange_rates.csv` and `data/exported/exchange_history.csv`.
+Lake-first ingestion and the read-only API remain owned by `book-fx-data`.
+
+The stock adapter writes the validated Yahoo Finance chart responses to
+`data/exported/stock_prices_raw.json` and the capture projections to
+`data/exported/stock_prices.csv` and `data/exported/stock_history.csv`.
+Lake-first ingestion and the read-only API remain owned by `book-finance-data`.
+
+The Kaidee adapter writes the validated embedded page payload to
+`data/exported/kaidee_classifieds_raw.json` and the capture projections to
+`data/exported/kaidee_classifieds.csv` and
+`data/exported/kaidee_classifieds_history.csv`. It is collection-only; durable
+marketplace lake/API ownership remains with the downstream marketplace data
+product.
+
+The Matichon adapter writes the raw RSS response to
+`data/exported/matichon_news_raw.xml` and the capture projections to
+`data/exported/matichon_news.csv` and
+`data/exported/matichon_news_history.csv`. It is collection-only; durable news
+lake/API ownership remains with the downstream news data product.
+
+The Bangkok Post Business adapter writes the raw RSS response to
+`data/exported/thai_business_news_raw.xml` and the capture projections to
+`data/exported/thai_business_news.csv` and
+`data/exported/thai_business_news_history.csv`. It is collection-only; durable
+business-news lake/API ownership remains with the downstream news data
+product.
+
+The Blognone adapter writes the raw Atom-compatible response to
+`data/exported/thai_tech_news_raw.xml` and the capture projections to
+`data/exported/thai_tech_news.csv` and
+`data/exported/thai_tech_news_history.csv`. It is collection-only; durable
+technology-news lake/API ownership remains with the downstream news data
+product.
+
+The Wongnai adapter writes bounded raw HTML pages to
+`data/exported/wongnai_bangkok_raw.json` and the capture projections to
+`data/exported/wongnai_bangkok.csv` and
+`data/exported/wongnai_bangkok_history.csv`. It reads the embedded
+`window._wn` state, validates canonical restaurant URLs, and filters every row
+to Bangkok city attribution before writing collection-only output.
+
+The same adapter writes the upcountry capture to
+`data/exported/wongnai_upcountry_raw.json`,
+`data/exported/wongnai_upcountry.csv`, and
+`data/exported/wongnai_upcountry_history.csv`. The enabled upcountry job uses
+three bounded pages and keeps only rows attributed to `khonkaen`, `korat`, or
+`pattaya` (including Chon Buri city labels for Pattaya).
+
+The AI tools adapter writes bounded Futurepedia HTML pages to
+`data/exported/ai_tools_raw.json` and the capture projections to
+`data/exported/ai_tools.csv` and `data/exported/ai_tools_history.csv`. It
+validates canonical `/tool/<slug>` URLs and preserves category, rating, pricing,
+description, and source attribution for collection-only discovery output.
+
+The DeFi adapter writes the validated DefiLlama response to
+`data/exported/defi_yields_raw.json` and the capture projections to
+`data/exported/defi_yields.csv` and `data/exported/defi_yields_history.csv`.
+It normalizes the `Optimism` configuration alias to DefiLlama's `OP Mainnet`,
+requires finite APY/TVL and unique pool IDs, and rejects stale provider responses.
 
 ### Data Freshness Strategy
 
 | Data Type | Frequency | Reason |
 |-----------|-----------|--------|
-| Jobs | Daily | New postings every day |
-| Products | Every 6h | Prices change frequently |
-| Businesses | Weekly | Stable data, occasional updates |
-| News | Every 2h | Time-sensitive content |
-| Property | Daily | New listings appear daily |
+| Discovery feeds | Daily | Trending and time-sensitive sources |
+| Jobs | Every 6h | New postings expire quickly |
+| Job matching | Daily | Refresh scored opportunities |
+| Property | Daily | New listings appear frequently |
+| Dashboard | 3 times daily | Keep operational view current |
 
 ---
 
 ## Quick Start
 
 ```bash
-# Install dependencies
+# Install dependencies in the repository venv
+python3 -m venv .venv
+. .venv/bin/activate
 pip install -r requirements.txt
 
 # Install Playwright browsers (for JS-rendered pages)
@@ -132,26 +265,38 @@ cp .env.example .env
 # Run all due jobs now
 python main.py run
 
-# Run a specific job
-python main.py run jobsdb_thai
+# Run a specific configured job
+python main.py run job_postings
 
-# Run continuous scheduler loop
-python main.py loop
+# Install or inspect the five-minute local cron
+bash setup_cron.sh install
+bash setup_cron.sh status
 
 # Check schedule status
 python main.py status
 
-# Enable/disable a job
-python main.py enable ddproperty_condos
-python main.py disable shopee_tech
-
-# Run a category scraper directly
-python -m categories.jobs.jobsdb_scraper
-python -m categories.ecommerce.shopee_scraper
+# Run the direct job capture/matching path
+python scripts/scrape_job_postings.py
+python scripts/filter_job_matches.py
 
 # Run MCP server
 python -m mcp_server.server
 ```
+
+### Collection health
+
+The collection path is the authoritative default health mode. It checks the
+four core artifacts and does not require optional AI enrichment or outbound
+notifications:
+
+```bash
+python scripts/pipeline_runner.py --health
+python scripts/pipeline_health_monitor.py
+```
+
+The cron entry runs `pipeline_health_monitor.py` after each collection run and
+uses `flock` to prevent overlapping runs. Use `--send-telegram` only when an
+operator has explicitly approved an external notification.
 
 ---
 
@@ -247,7 +392,9 @@ The job scraping pipeline automates discovery, matching, and application trackin
 scrape_job_postings.py
     → job_postings.csv (latest snapshot, all sources)
     → matched_jobs.csv (scored against skills, deduplicated)
-    → apply_tracker.csv (via auto_seed_tracker.py, status-tracked)
+    → job_descriptions.csv (top matched descriptions, optional enrichment)
+    → apply_tracker.csv (via auto_seed_tracker.py, discovered/prepared statuses)
+    → resume_variants/ (local application-prep variants)
 ```
 
 ### Supported Job Boards
@@ -284,17 +431,25 @@ The pipeline includes data quality recovery mechanisms:
 - **URL-based extraction**: For rows not in source files, company names are extracted from URL patterns
 - **Status-aware recovery**: Rows with `notified` or `applying` status are prioritized for recovery
 
-Current data quality (as of 2026-07-05):
-- `apply_tracker.csv`: 629 rows, 93 missing company (14.8%), 151 missing title (24.0%)
-- `matched_jobs.csv`: 1104 rows, 219 missing company (19.8%)
-- `job_postings.csv`: 1438 rows, 305 missing company (21.2%)
+Latest verified runtime snapshot (2026-08-24; data is gitignored and will
+change on the next run):
+- `job_postings.csv`: 1,647 rows
+- `matched_jobs.csv`: 118 rows
+- `apply_tracker.csv`: 106 rows, all seeded as `discovered` (no submission)
+- `job_descriptions.csv`: 10 rows
+- `resume_variants/`: 5 configured variants
 
 ### Pipeline Scripts
 
 | Script | Purpose |
 |--------|---------|
 | `scrape_job_postings.py` | Main scraper — fetches from 10+ job boards |
+| `scrape_job_descriptions.py` | Fetches descriptions for top matched jobs |
+| `filter_job_matches.py` | Scores and filters the latest postings |
 | `auto_seed_tracker.py` | Seeds `apply_tracker.csv` from `matched_jobs.csv` |
+| `multi_resume_manager.py` | Initializes and lists application-prep variants |
+| `pipeline_runner.py` | Runs collection-mode health and optional pipeline steps |
+| `pipeline_health_monitor.py` | Checks disk, scheduler, data freshness, and optional integrations |
 | `send_application_emails.py` | Sends application emails to recruiters |
 | `auto_send_email.py` | Automated email sending with follow-ups |
 | `find_recruiter_emails.py` | Discovers recruiter contacts from company data |
@@ -303,15 +458,18 @@ Current data quality (as of 2026-07-05):
 
 ```bash
 # From this repo root, with project venv activated
-python3 scripts/scrape_job_postings.py
-python3 scripts/auto_seed_tracker.py
-python3 scripts/pipeline_runner.py --dry-run
+python scripts/scrape_job_postings.py
+python scripts/filter_job_matches.py
+python scripts/scrape_job_descriptions.py --top 10
+python scripts/auto_seed_tracker.py --min-score 8
+python scripts/multi_resume_manager.py --init
+python scripts/pipeline_runner.py --health
 
 # Prepare drafts only (does not submit)
-python3 scripts/auto_apply.py --dry-run
+python scripts/auto_apply.py --dry-run
 
 # Application emails — dry-run by default; live send is gated (see SAFETY.md)
-python3 scripts/send_application_emails.py
+python scripts/send_application_emails.py
 ```
 
 ---

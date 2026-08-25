@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>มติชนออนไลน์</title>
+    <link>https://www.matichon.co.th</link>
+    <description>ข่าวมติชน</description>
+    <item>
+      <title>ข่าวธุรกิจตัวอย่างวันนี้</title>
+      <link>https://www.matichon.co.th/economy/news_12345?utm_source=rss</link>
+      <guid isPermaLink="false">matichon-12345</guid>
+      <pubDate>Tue, 25 Aug 2026 08:30:00 +0000</pubDate>
+      <dc:creator>กองบรรณาธิการ</dc:creator>
+      <category>เศรษฐกิจ</category>
+      <category>ข่าวเด่น</category>
+      <description><![CDATA[<p>รายละเอียด <strong>ข่าวธุรกิจ</strong> ตัวอย่าง</p>]]></description>
+      <media:content url="https://www.matichon.co.th/wp-content/uploads/example.jpg" type="image/jpeg" />
+    </item>
+    <item>
+      <title>บทความตัวอย่างที่สอง</title>
+      <link>https://www.matichon.co.th/politics/news_67890#comments</link>
+      <guid>https://www.matichon.co.th/politics/news_67890</guid>
+      <pubDate>Tue, 25 Aug 2026 07:45:00 +0000</pubDate>
+      <description>สรุปข่าวการเมือง</description>
+    </item>
+    <item>
+      <title>ลิงก์นอกโดเมนต้องถูกทิ้ง</title>
+      <link>https://example.com/not-matichon</link>
+      <guid>external-1</guid>
+      <pubDate>Tue, 25 Aug 2026 07:00:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>ไม่มีวันเผยแพร่ต้องถูกทิ้ง</title>
+      <link>https://www.matichon.co.th/sport/news_99999</link>
+      <guid>matichon-99999</guid>
+      <description>ไม่มีวันที่</description>
+    </item>
+  </channel>
+</rss>

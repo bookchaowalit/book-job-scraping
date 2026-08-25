@@ -1,0 +1,432 @@
+schema_version: book-job-scraping.source-coverage.v1
+updated: 2026-08-25
+
+# This registry describes how each business source is acquired. It is
+# intentionally separate from jobs.yaml so product coverage, implementation
+# readiness, and restoration priority remain visible in one place.
+policy:
+  acquisition_order:
+    - api
+    - cli
+    - rss
+    - scrape
+  shared_engines:
+    - httpx
+    - rss
+    - playwright
+    - selenium
+    - scrapy
+    - firecrawl
+  activation_rule: "Only activate a source when its adapter exists, its output contract is known, and a focused smoke test passes."
+  safety_rule: "Respect robots.txt, source terms, rate limits, privacy, and applicable PDPA requirements."
+
+business_lanes:
+  jobs:
+    priority: P0
+    purpose: "Job and freelance discovery capture"
+    contract: job.v1
+  property:
+    priority: P0
+    purpose: "Property listing and price intelligence"
+    contract: property-capture
+  discovery:
+    priority: P1
+    purpose: "Technology, product, and developer trend intelligence"
+    contract: discovery-capture
+  news:
+    priority: P1
+    purpose: "Business and technology news feeds"
+    contract: news-capture
+  marketplace:
+    priority: P1
+    purpose: "Classified and marketplace listings"
+    contract: marketplace-capture
+  restaurants:
+    priority: P1
+    purpose: "Restaurant and local business discovery"
+    contract: local-business-capture
+  finance:
+    priority: P1
+    purpose: "Market, crypto, FX, and yield data"
+    contract: finance-capture
+  marketing:
+    priority: P2
+    purpose: "Search visibility and SEO intelligence"
+    contract: marketing-capture
+  ai:
+    priority: P2
+    purpose: "AI tool and product discovery"
+    contract: ai-tool-capture
+  travel:
+    priority: P2
+    purpose: "Flight and route price intelligence"
+    contract: travel-capture
+  opportunities:
+    priority: P2
+    purpose: "Cross-source opportunity discovery"
+    contract: opportunity-capture
+  operations:
+    priority: P0
+    purpose: "Collection health and operational visibility"
+    contract: local-ops
+
+sources:
+  - job: notebookspec_tech
+    business: news
+    source: NotebookSpec
+    url: "https://notebookspec.com/web/feed"
+    channel: rss
+    engine: rss
+    schedule: "0 */6 * * *"
+    module: news.notebookspec_scraper
+    status: active
+    priority: P2
+    business_value: medium
+    contract: news-capture
+    owner_repository: book-news-scraping
+    next_action: "Maintain bounded NotebookSpec RSS capture with canonical HTTPS URLs and attribution; durable news lake/API stays downstream."
+
+  - job: matichon_news
+    business: news
+    source: Matichon
+    url: "https://www.matichon.co.th/feed"
+    channel: rss
+    engine: rss
+    schedule: "0 */4 * * *"
+    module: news.matichon_scraper
+    status: active
+    priority: P1
+    business_value: high
+    contract: news-capture
+    owner_repository: book-news-scraping
+    next_action: "Maintain bounded Matichon RSS capture, canonical URL validation, publication-date normalization, and attribution fields."
+
+  - job: kaidee_classifieds
+    business: marketplace
+    source: Kaidee
+    url: "https://www.kaidee.com/"
+    channel: scrape
+    engine: httpx
+    schedule: "0 */6 * * *"
+    module: ecommerce.kaidee_scraper
+    status: active
+    priority: P1
+    business_value: high
+    contract: marketplace-capture
+    owner_repository: book-ecommerce-scraping
+    next_action: "Maintain one-page bounded HTML capture, embedded payload validation, canonical listing URLs, and ToS/rate-limit review."
+
+  - job: wongnai_bangkok
+    business: restaurants
+    source: Wongnai Bangkok
+    url: "https://www.wongnai.com/restaurants?locationKey=1"
+    channel: scrape
+    engine: httpx
+    schedule: "0 0 * * 0"
+    module: restaurants.wongnai_scraper
+    status: active
+    priority: P1
+    business_value: medium
+    contract: local-business-capture
+    owner_repository: book-restaurant-scraping
+    next_action: "Maintain bounded Wongnai HTML capture, Bangkok city attribution across pages, canonical URLs, and terms/rate-limit review."
+
+  - job: wongnai_upcountry
+    business: restaurants
+    source: Wongnai Upcountry
+    url: "https://www.wongnai.com/restaurants?locationKey=6"
+    channel: scrape
+    engine: httpx
+    schedule: "0 0 * * 0"
+    module: restaurants.wongnai_scraper
+    status: active
+    priority: P2
+    business_value: medium
+    contract: local-business-capture
+    owner_repository: book-restaurant-scraping
+    next_action: "Maintain bounded three-page Wongnai capture for khonkaen, korat, and pattaya with city attribution, canonical URLs, and terms/rate-limit review."
+
+  - job: thai_business_news
+    business: news
+    source: Bangkok Post Business
+    url: "https://www.bangkokpost.com/rss/data/business.xml"
+    channel: rss
+    engine: rss
+    schedule: "0 */2 * * *"
+    module: news.thai_business_scraper
+    status: active
+    priority: P1
+    business_value: high
+    contract: news-capture
+    owner_repository: book-news-scraping
+    next_action: "Maintain bounded Bangkok Post Business RSS capture, business-section attribution, canonical URL validation, and source-timezone normalization."
+
+  - job: thai_tech_news
+    business: news
+    source: Blognone and Thai technology feeds
+    url: "https://www.blognone.com/atom.xml"
+    channel: rss
+    engine: rss
+    schedule: "0 */2 * * *"
+    module: news.thai_tech_scraper
+    status: active
+    priority: P1
+    business_value: high
+    contract: news-capture
+    owner_repository: book-news-scraping
+    next_action: "Maintain bounded Blognone Atom capture, technology-section attribution, canonical URL/article ID validation, and feed availability monitoring."
+
+  - job: ddproperty_condos
+    business: property
+    source: DDproperty rental listings
+    url: "https://www.ddproperty.com/เช่าคอนโด"
+    channel: scrape
+    engine: httpx
+    schedule: "0 8 * * *"
+    module: property.ddproperty_scraper
+    status: blocked
+    priority: P0
+    business_value: high
+    contract: property-capture
+    owner_repository: book-property-scraping
+    next_action: "Thai /เช่าคอนโด returns priced __NEXT_DATA__ listings via curl; httpx collection is Cloudflare 403. Re-enable after a scraper-client smoke returns Bangkok priced rows."
+
+  - job: crypto_prices
+    business: finance
+    source: CoinGecko
+    url: "https://api.coingecko.com/api/v3/simple/price"
+    channel: api
+    engine: httpx
+    schedule: "0 */4 * * *"
+    module: scripts.scrape_crypto_prices
+    status: active
+    priority: P1
+    business_value: high
+    contract: finance-capture
+    owner_repository: book-crypto-data
+    next_action: "Maintain bounded CoinGecko API capture, payload validation, and rate-limit monitoring."
+
+  - job: exchange_rates
+    business: finance
+    source: Frankfurter
+    url: "https://api.frankfurter.dev/v1/latest"
+    channel: api
+    engine: httpx
+    schedule: "0 */6 * * *"
+    module: scripts.scrape_exchange_rates
+    status: active
+    priority: P1
+    business_value: high
+    contract: finance-capture
+    owner_repository: book-fx-data
+    next_action: "Maintain bounded Frankfurter API capture, base/symbol validation, and provider-date preservation."
+
+  - job: github_trending
+    business: discovery
+    source: GitHub repository search
+    url: "https://api.github.com/search/repositories"
+    channel: api
+    engine: httpx
+    schedule: "0 10 * * *"
+    module: scripts.scrape_github_trending
+    status: active
+    priority: P1
+    business_value: high
+    contract: discovery-capture
+    owner_repository: book-job-scraping
+    next_action: "Maintain API quota handling and repository URL deduplication."
+
+  - job: hackernews
+    business: discovery
+    source: Hacker News Firebase and Algolia APIs
+    url: "https://hacker-news.firebaseio.com/v0"
+    channel: api
+    engine: httpx
+    schedule: "0 9 * * *"
+    module: scripts.scrape_hackernews
+    status: active
+    priority: P1
+    business_value: high
+    contract: discovery-capture
+    owner_repository: book-job-scraping
+    next_action: "Maintain public API polling limits and story timestamp normalization."
+
+  - job: devto_articles
+    business: discovery
+    source: Dev.to Articles API
+    url: "https://dev.to/api/articles"
+    channel: api
+    engine: httpx
+    schedule: "0 10 * * *"
+    module: scripts.scrape_devto
+    status: active
+    priority: P1
+    business_value: medium
+    contract: discovery-capture
+    owner_repository: book-job-scraping
+    next_action: "Maintain tag coverage and history append integrity."
+
+  - job: producthunt_top
+    business: discovery
+    source: Product Hunt Atom feed
+    url: "https://www.producthunt.com/feed"
+    channel: rss
+    engine: httpx
+    schedule: "0 11 * * *"
+    module: scripts.scrape_producthunt
+    status: active
+    priority: P1
+    business_value: high
+    contract: discovery-capture
+    owner_repository: book-job-scraping
+    next_action: "Maintain feed parsing and product URL deduplication."
+
+  - job: property_listings
+    business: property
+    source: DDproperty sale listings
+    url: "https://www.ddproperty.com/condo-for-sale/bangkok"
+    channel: scrape
+    engine: firecrawl
+    schedule: "0 9 * * *"
+    module: scripts.scrape_property_listings
+    status: active
+    priority: P0
+    business_value: high
+    contract: property-capture
+    owner_repository: book-property-scraping
+    next_action: "Maintain fallback parsing and price-drop validation; keep external key optional where possible."
+
+  - job: seo_rankings
+    business: marketing
+    source: Search visibility queries
+    url: "https://api.firecrawl.dev/v1/search"
+    channel: scrape
+    engine: firecrawl
+    schedule: "0 8 * * *"
+    module: scripts.scrape_seo_rankings
+    status: blocked
+    priority: P2
+    business_value: medium
+    contract: marketing-capture
+    owner_repository: book-seo-data
+    next_action: "Implement a search-result adapter with domain/ranking evidence and provenance."
+
+  - job: job_postings
+    business: jobs
+    source: Multi-board job postings
+    url: "https://remotive.com/api/remote-jobs"
+    channel: hybrid
+    engine: firecrawl+httpx
+    schedule: "0 */6 * * *"
+    module: scripts.scrape_job_postings
+    status: active
+    priority: P0
+    business_value: high
+    contract: job.v1
+    owner_repository: book-job-scraping
+    next_action: "Maintain API-first board coverage and bounded HTML fallback; publish only through the job.v1 handoff."
+
+  - job: stock_prices
+    business: finance
+    source: Yahoo Finance chart API
+    url: "https://query1.finance.yahoo.com/v8/finance/chart"
+    channel: api
+    engine: httpx
+    schedule: "0 8 * * *"
+    module: scripts.scrape_stock_prices
+    status: active
+    priority: P1
+    business_value: high
+    contract: finance-capture
+    owner_repository: book-stock-data
+    next_action: "Maintain bounded Yahoo Finance chart capture, symbol/interval validation, timestamp ordering, and provider error monitoring."
+
+  - job: ai_tools
+    business: ai
+    source: Futurepedia AI Tools directory
+    url: "https://www.futurepedia.io/ai-tools"
+    channel: scrape
+    engine: httpx
+    schedule: "0 11 * * *"
+    module: scripts.scrape_ai_tools
+    status: active
+    priority: P2
+    business_value: medium
+    contract: ai-tool-capture
+    owner_repository: book-ai-tools-data
+    next_action: "Maintain bounded Futurepedia category/page capture, canonical tool URLs, category attribution, and source availability monitoring."
+
+  - job: defi_yields
+    business: finance
+    source: DefiLlama pools API
+    url: "https://yields.llama.fi/pools"
+    channel: api
+    engine: httpx
+    schedule: "0 7 * * *"
+    module: scripts.scrape_defi_yields
+    status: active
+    priority: P2
+    business_value: medium
+    contract: finance-capture
+    owner_repository: book-defi-data
+    next_action: "Maintain bounded DefiLlama API capture with chain alias, APY/TVL, pool identity, freshness, and provider attribution validation."
+
+  - job: flight_prices
+    business: travel
+    source: Kiwi Tequila flight search API
+    url: "https://api.tequila.kiwi.com/v2/search"
+    channel: api
+    engine: firecrawl+httpx
+    schedule: "0 7 * * 1"
+    module: scripts.scrape_flight_prices
+    status: blocked
+    priority: P2
+    business_value: medium
+    contract: travel-capture
+    owner_repository: book-flight-data
+    next_action: "Implement API adapter only after provider credential and route-budget review."
+
+  - job: job_match_filter
+    business: jobs
+    source: Local job matching stage
+    url: null
+    channel: local
+    engine: local
+    schedule: "30 7 * * *"
+    module: scripts.filter_job_matches
+    status: active
+    priority: P0
+    business_value: high
+    contract: job.v1-derived
+    owner_repository: book-job-scraping
+    next_action: "Keep scoring, deduplication, and input/output paths covered by tests."
+
+  - job: money_opportunities
+    business: opportunities
+    source: Cross-source opportunity discovery
+    url: "https://www.etsy.com/market/trending"
+    channel: hybrid
+    engine: httpx
+    schedule: "0 10 * * *"
+    module: opportunities.scrape_money_opportunities
+    status: blocked
+    priority: P2
+    business_value: medium
+    contract: opportunity-capture
+    owner_repository: book-opportunity-intelligence
+    next_action: "Define source-specific provenance and consent/rate-limit rules before implementing."
+
+  - job: scraper_dashboard
+    business: operations
+    source: Local collection health aggregation
+    url: null
+    channel: local
+    engine: local
+    schedule: "15 8,11,20 * * *"
+    module: scripts.scraper_dashboard
+    status: active
+    priority: P0
+    business_value: high
+    contract: local-ops
+    owner_repository: book-job-scraping
+    next_action: "Keep dashboard read-only and aligned with source coverage health."

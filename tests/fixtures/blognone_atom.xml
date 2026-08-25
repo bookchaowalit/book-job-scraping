@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Blognone - ข่าวไอที เทคโนโลยี</title>
+  <link href="https://www.blognone.com/" />
+  <entry>
+    <title>NVIDIA เปิดตัวชิป AI รุ่นใหม่</title>
+    <link href="https://www.blognone.com/node/151453?utm_source=atom" />
+    <id>151453 at https://www.blognone.com</id>
+    <updated>2026-08-25T03:11:08+00:00</updated>
+    <author><name>mk</name></author>
+    <summary type="html">รายละเอียด <b>ข่าวเทคโนโลยี</b> ตัวอย่าง</summary>
+    <category term="AI" />
+    <category term="ชิป" />
+  </entry>
+  <entry>
+    <title>เปิดตัวโทรศัพท์รุ่นใหม่</title>
+    <link href="https://www.blognone.com/node/151452" />
+    <updated>2026-08-24T14:40:00Z</updated>
+    <summary>ข่าวมือถือ</summary>
+  </entry>
+  <entry>
+    <title>ลิงก์นอกโดเมนต้องถูกทิ้ง</title>
+    <link href="https://example.com/not-blognone" />
+    <updated>2026-08-24T10:00:00Z</updated>
+  </entry>
+  <entry>
+    <title>ไม่มีวันเผยแพร่ต้องถูกทิ้ง</title>
+    <link href="https://www.blognone.com/node/151451" />
+    <summary>ไม่มีวันที่</summary>
+  </entry>
+</feed>

@@ -20,17 +20,32 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 ROOT = SCRIPT_DIR.parent.parent.parent.parent
 DATA_DIR = SCRIPT_DIR.parent / "data"
 CRON_LOG = DATA_DIR / "cron_scheduler_log.json"
+SCHEDULE_STATE = DATA_DIR / "schedule_state.json"
 HEALTH_REPORT = DATA_DIR / "unified_health_report.json"
 
 # Telegram
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_BOT_TOKEN = (
+    os.getenv("TELEGRAM_BOT_TOKEN", "")
+    or os.getenv("TELEGRAM_HEALTH_BOT_TOKEN", "")
+    or os.getenv("TELEGRAM_INFRA_BOT_TOKEN", "")
+)
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
-# API Keys to check
-API_KEYS = {
-    "OPENROUTER_API_KEY": os.getenv("OPENROUTER_API_KEY", ""),
-    "TELEGRAM_BOT_TOKEN": os.getenv("TELEGRAM_BOT_TOKEN", ""),
-}
+
+def _truthy(value: str | None) -> bool:
+    return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _latest_main_scheduler_run() -> str:
+    """Return the newest run recorded by the collection scheduler."""
+    if not SCHEDULE_STATE.exists():
+        return ""
+    try:
+        state = json.loads(SCHEDULE_STATE.read_text())
+        runs = [entry.get("last_run", "") for entry in state.values()]
+        return max((run for run in runs if run), default="")
+    except (OSError, TypeError, ValueError):
+        return ""
 
 
 def check_disk_space():
@@ -56,12 +71,37 @@ def check_disk_space():
 def check_cron_status():
     """Check cron scheduler status."""
     if not CRON_LOG.exists():
-        return {"status": "missing", "message": "No cron log found"}
+        latest = _latest_main_scheduler_run()
+        if latest:
+            latest_dt = datetime.fromisoformat(latest[:19])
+            hours_ago = (datetime.now() - latest_dt).total_seconds() / 3600
+            return {
+                "status": "ok" if hours_ago <= 48 else "warning",
+                "last_daily": latest[:19],
+                "last_weekly": "not configured",
+                "source": "main_scheduler",
+                "issues": [] if hours_ago <= 48 else [f"Collection scheduler stale ({hours_ago:.1f}h ago)"],
+            }
+        return {"status": "missing", "message": "No scheduler state found"}
     
     try:
         log = json.loads(CRON_LOG.read_text())
         last_daily = log.get("last_daily", "")
         last_weekly = log.get("last_weekly", "")
+
+        # The collection-only scheduler records state separately from the
+        # optional daily/weekly pipeline runner. Prefer the real collection
+        # evidence when the optional runner has not been installed.
+        if not last_daily and not last_weekly:
+            latest = _latest_main_scheduler_run()
+            if latest:
+                return {
+                    "status": "ok",
+                    "last_daily": latest[:19],
+                    "last_weekly": "not configured",
+                    "source": "main_scheduler",
+                    "issues": [],
+                }
         
         # Check if recent
         now = datetime.now()
@@ -127,17 +167,30 @@ def check_data_freshness():
     return freshness
 
 
-def check_api_keys():
-    """Check if API keys are configured (env var or hardcoded fallback)."""
+def check_api_keys(required=None):
+    """Check configured integrations without treating optional features as failures."""
+    required = required or {}
+    candidates = {
+        "OPENROUTER_API_KEY": [os.getenv("OPENROUTER_API_KEY", "")],
+        "TELEGRAM_BOT_TOKEN": [
+            os.getenv("TELEGRAM_BOT_TOKEN", ""),
+            os.getenv("TELEGRAM_HEALTH_BOT_TOKEN", ""),
+            os.getenv("TELEGRAM_INFRA_BOT_TOKEN", ""),
+        ],
+    }
     results = {}
-    for key_name, fallback in API_KEYS.items():
-        env_val = os.environ.get(key_name, "")
-        # Accept if env var is non-empty OR fallback is non-empty
-        effective = env_val if env_val else fallback
+    for key_name, values in candidates.items():
+        effective = next((value for value in values if value), "")
         if effective:
-            results[key_name] = {"status": "ok", "configured": True, "source": "env" if env_val else "fallback"}
+            results[key_name] = {"status": "ok", "configured": True, "source": "env"}
         else:
-            results[key_name] = {"status": "missing", "configured": False, "source": None}
+            is_required = bool(required.get(key_name, False))
+            results[key_name] = {
+                "status": "missing" if is_required else "optional_missing",
+                "configured": False,
+                "required": is_required,
+                "source": None,
+            }
     
     return results
 
@@ -237,12 +290,17 @@ def run_health_check(send_telegram_flag=False):
     
     # 4. API Keys
     print("\n🔑 API Keys:")
-    api_keys = check_api_keys()
+    api_keys = check_api_keys({
+        "OPENROUTER_API_KEY": _truthy(os.getenv("PIPELINE_REQUIRE_OPENROUTER")),
+        "TELEGRAM_BOT_TOKEN": send_telegram_flag or _truthy(os.getenv("PIPELINE_REQUIRE_TELEGRAM")),
+    })
     report["checks"]["api_keys"] = api_keys
     for key_name, info in api_keys.items():
-        icon = "✅" if info["status"] == "ok" else "❌"
+        icon = "✅" if info["status"] == "ok" else "⚪"
         print(f"   {icon} {key_name}")
-        if info["status"] != "ok":
+        if info["status"] == "optional_missing":
+            print("      optional integration not configured")
+        elif info["status"] != "ok":
             issues.append(f"API key missing: {key_name}")
     
     # 5. Pipeline Health

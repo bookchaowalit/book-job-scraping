@@ -19,6 +19,7 @@ Usage:
 import argparse
 import csv
 import json
+import math
 import os
 import sys
 from datetime import datetime, timedelta
@@ -71,20 +72,44 @@ def load_opportunity_rows(*, history: bool = False, max_rows: int = 10000) -> li
 # opportunities niche is Track A: opportunity.v1 only (no local CSV path).
 SCRAPER_PATHS = {
     "crypto": {
-        "latest": ROOT / "domains" / "book-finance" / "data" / "crypto_prices.csv",
-        "history": ROOT / "domains" / "book-finance" / "data" / "crypto_history.csv",
+        "latest": ROOT / "data" / "exported" / "crypto_prices.csv",
+        "history": ROOT / "data" / "exported" / "crypto_history.csv",
     },
     "exchange_rates": {
-        "latest": ROOT / "domains" / "book-finance" / "data" / "exchange_rates.csv",
-        "history": ROOT / "domains" / "book-finance" / "data" / "exchange_history.csv",
+        "latest": ROOT / "data" / "exported" / "exchange_rates.csv",
+        "history": ROOT / "data" / "exported" / "exchange_history.csv",
+    },
+    "marketplace": {
+        "latest": ROOT / "data" / "exported" / "kaidee_classifieds.csv",
+        "history": ROOT / "data" / "exported" / "kaidee_classifieds_history.csv",
+    },
+    "restaurants": {
+        "latest": ROOT / "data" / "exported" / "wongnai_bangkok.csv",
+        "history": ROOT / "data" / "exported" / "wongnai_bangkok_history.csv",
+    },
+    "restaurants_upcountry": {
+        "latest": ROOT / "data" / "exported" / "wongnai_upcountry.csv",
+        "history": ROOT / "data" / "exported" / "wongnai_upcountry_history.csv",
+    },
+    "news": {
+        "latest": ROOT / "data" / "exported" / "matichon_news.csv",
+        "history": ROOT / "data" / "exported" / "matichon_news_history.csv",
+    },
+    "business_news": {
+        "latest": ROOT / "data" / "exported" / "thai_business_news.csv",
+        "history": ROOT / "data" / "exported" / "thai_business_news_history.csv",
+    },
+    "tech_news": {
+        "latest": ROOT / "data" / "exported" / "thai_tech_news.csv",
+        "history": ROOT / "data" / "exported" / "thai_tech_news_history.csv",
     },
     "stocks": {
-        "latest": ROOT / "domains" / "book-finance" / "data" / "stock_prices.csv",
-        "history": ROOT / "domains" / "book-finance" / "data" / "stock_history.csv",
+        "latest": ROOT / "data" / "exported" / "stock_prices.csv",
+        "history": ROOT / "data" / "exported" / "stock_history.csv",
     },
     "defi": {
-        "latest": ROOT / "domains" / "book-finance" / "data" / "defi_yields.csv",
-        "history": ROOT / "domains" / "book-finance" / "data" / "defi_yields_history.csv",
+        "latest": ROOT / "data" / "exported" / "defi_yields.csv",
+        "history": ROOT / "data" / "exported" / "defi_yields_history.csv",
     },
     "github_trending": {
         "latest": ROOT / "data" / "exported" / "github_trending.csv",
@@ -114,14 +139,20 @@ SCRAPER_PATHS = {
         "history": ROOT / "domains" / "book-marketing" / "data" / "seo_rankings_history.csv",
     },
     "ai_tools": {
-        "latest": ROOT / "domains" / "book-ai" / "data" / "ai_tools.csv",
-        "history": ROOT / "domains" / "book-ai" / "data" / "ai_tools_history.csv",
+        "latest": ROOT / "data" / "exported" / "ai_tools.csv",
+        "history": ROOT / "data" / "exported" / "ai_tools_history.csv",
     },
 }
 
 NICHE_NAMES = {
     "crypto": "Crypto Markets",
     "exchange_rates": "Exchange Rates",
+    "marketplace": "Marketplace Listings",
+    "restaurants": "Wongnai Bangkok Restaurants",
+    "restaurants_upcountry": "Wongnai Upcountry Restaurants",
+    "news": "Matichon News",
+    "business_news": "Bangkok Post Business",
+    "tech_news": "Blognone Technology",
     "stocks": "Stock Portfolio",
     "defi": "DeFi Yields",
     "github_trending": "GitHub Trending",
@@ -165,13 +196,18 @@ def extract_crypto_insights(latest: list, history: list) -> list:
     if not latest:
         return insights
 
+    # Prefer one comparable quote currency when a source emits multiple pairs.
+    usd_latest = [row for row in latest if str(row.get("currency", "")).lower() == "usd"]
+    comparable_rows = usd_latest or latest
+
     # Biggest movers (24h)
     movers = []
-    for row in latest:
+    for row in comparable_rows:
         try:
-            change = float(row.get("change_pct_24h", 0))
+            change = float(row.get("change_24h_pct", 0))
             movers.append({
-                "coin": row.get("coin", "?").upper(),
+                "coin": row.get("coin_id", row.get("coin", "?")).upper(),
+                "currency": str(row.get("currency", "USD")).upper(),
                 "price": float(row.get("price", 0)),
                 "change_pct": change,
             })
@@ -185,7 +221,7 @@ def extract_crypto_insights(latest: list, history: list) -> list:
         insights.append({
             "type": "price_movement",
             "title": f"{top_mover['coin']} {direction} {abs(top_mover['change_pct']):.1f}% in 24h",
-            "narrative": f"{top_mover['coin']} is now at ${top_mover['price']:,.2f}, "
+            "narrative": f"{top_mover['coin']} is now at {top_mover['currency']} {top_mover['price']:,.2f}, "
                         f"{'gaining' if top_mover['change_pct'] > 0 else 'losing'} "
                         f"{abs(top_mover['change_pct']):.1f}% in the last 24 hours.",
             "data_points": {
@@ -633,6 +669,155 @@ def extract_exchange_rate_insights(latest: list, history: list) -> list:
     return insights
 
 
+def extract_marketplace_insights(latest: list, history: list) -> list:
+    """Extract a bounded Kaidee marketplace snapshot."""
+    if not latest:
+        return []
+
+    categories: dict[str, int] = {}
+    priced: list[dict[str, Any]] = []
+    for row in latest:
+        category = str(row.get("category") or "ไม่ระบุ").strip()
+        categories[category] = categories.get(category, 0) + 1
+        try:
+            price = float(row.get("price_thb", 0))
+        except (TypeError, ValueError):
+            continue
+        if math.isfinite(price) and price > 0:
+            priced.append({
+                "listing_id": row.get("listing_id", ""),
+                "title": str(row.get("title") or "")[:80],
+                "price_thb": price,
+                "category": category,
+                "url": row.get("url", ""),
+            })
+
+    if not priced:
+        return []
+    priced.sort(key=lambda item: item["price_thb"])
+    top_categories = sorted(categories.items(), key=lambda item: (-item[1], item[0]))[:5]
+    cheapest = priced[0]
+    return [{
+        "type": "marketplace_snapshot",
+        "title": f"Kaidee tracks {len(priced)} priced listings across {len(categories)} categories",
+        "narrative": (
+            f"The latest Kaidee capture contains {len(priced)} priced listings. "
+            f"Most common categories: {', '.join(f'{name} ({count})' for name, count in top_categories)}. "
+            f"Lowest captured price is ฿{cheapest['price_thb']:,.0f} for {cheapest['title'] or cheapest['listing_id']}."
+        ),
+        "data_points": {
+            "total_listings": len(priced),
+            "categories": dict(top_categories),
+            "lowest_price": cheapest,
+        },
+        "actionability": 35,
+        "content_hook": f"🛒 Kaidee snapshot: {len(priced)} priced listings tracked",
+    }]
+
+
+def extract_restaurant_insights(latest: list, history: list) -> list:
+    """Extract a bounded Wongnai restaurant snapshot."""
+    if not latest:
+        return []
+    categories: dict[str, int] = {}
+    districts: dict[str, int] = {}
+    locations = sorted({str(row.get("location") or "").strip() for row in latest if row.get("location")})
+    is_bangkok = locations == ["bangkok"]
+    scope_label = "Bangkok" if is_bangkok else "upcountry"
+    for row in latest:
+        for category in str(row.get("categories") or "").split(","):
+            category = category.strip()
+            if category:
+                categories[category] = categories.get(category, 0) + 1
+        district = str(row.get("district") or "ไม่ระบุ").strip()
+        districts[district] = districts.get(district, 0) + 1
+    top_categories = sorted(categories.items(), key=lambda item: (-item[1], item[0]))[:5]
+    top_districts = sorted(districts.items(), key=lambda item: (-item[1], item[0]))[:5]
+    return [{
+        "type": "restaurant_snapshot",
+        "title": f"Wongnai captured {len(latest)} {scope_label} restaurants",
+        "narrative": (
+            f"The latest Wongnai HTML capture contains {len(latest)} location-validated {scope_label} restaurants "
+            f"across {len(districts)} district(s) and {len(locations)} configured location matcher(s)."
+        ),
+        "data_points": {
+            "total_restaurants": len(latest),
+            "locations": locations,
+            "top_categories": dict(top_categories),
+            "top_districts": dict(top_districts),
+        },
+        "actionability": 40,
+        "content_hook": f"🍜 Wongnai {scope_label} snapshot: {len(latest)} restaurants captured",
+    }]
+
+
+def extract_news_insights(latest: list, history: list) -> list:
+    """Extract a bounded Matichon RSS snapshot."""
+    if not latest:
+        return []
+
+    topics: dict[str, int] = {}
+    for row in latest:
+        categories = str(row.get("categories") or "").split(",")
+        for category in categories:
+            category = category.strip()
+            if category:
+                topics[category] = topics.get(category, 0) + 1
+    top_topics = sorted(topics.items(), key=lambda item: (-item[1], item[0]))[:5]
+    topic_text = ", ".join(f"{name} ({count})" for name, count in top_topics) or "ไม่มีหมวดหมู่"
+    return [{
+        "type": "news_snapshot",
+        "title": f"Matichon captured {len(latest)} attributed articles",
+        "narrative": f"The latest Matichon RSS capture contains {len(latest)} articles. Top topics: {topic_text}.",
+        "data_points": {"total_articles": len(latest), "top_topics": dict(top_topics)},
+        "actionability": 35,
+        "content_hook": f"📰 Matichon update: {len(latest)} articles across current topics",
+    }]
+
+
+def extract_business_news_insights(latest: list, history: list) -> list:
+    """Extract a bounded Bangkok Post Business snapshot."""
+    if not latest:
+        return []
+    sections = {}
+    for row in latest:
+        section = str(row.get("section") or "business").strip()
+        sections[section] = sections.get(section, 0) + 1
+    return [{
+        "type": "business_news_snapshot",
+        "title": f"Bangkok Post Business captured {len(latest)} articles",
+        "narrative": (
+            f"The latest Bangkok Post Business RSS capture contains {len(latest)} attributed articles "
+            f"across {len(sections)} section(s)."
+        ),
+        "data_points": {"total_articles": len(latest), "sections": sections},
+        "actionability": 40,
+        "content_hook": f"💼 Business news update: {len(latest)} articles captured",
+    }]
+
+
+def extract_tech_news_insights(latest: list, history: list) -> list:
+    """Extract a bounded Blognone technology snapshot."""
+    if not latest:
+        return []
+    topics = {}
+    for row in latest:
+        for topic in str(row.get("topics") or "").split(","):
+            topic = topic.strip()
+            if topic:
+                topics[topic] = topics.get(topic, 0) + 1
+    top_topics = sorted(topics.items(), key=lambda item: (-item[1], item[0]))[:5]
+    topic_text = ", ".join(f"{name} ({count})" for name, count in top_topics) or "ไม่มี topic metadata"
+    return [{
+        "type": "technology_news_snapshot",
+        "title": f"Blognone captured {len(latest)} technology articles",
+        "narrative": f"The latest Blognone feed capture contains {len(latest)} attributed technology articles. Topics: {topic_text}.",
+        "data_points": {"total_articles": len(latest), "top_topics": dict(top_topics)},
+        "actionability": 40,
+        "content_hook": f"💻 Tech news update: {len(latest)} Blognone articles captured",
+    }]
+
+
 def extract_property_insights(latest: list, history: list) -> list:
     """Extract real estate insights."""
     insights = []
@@ -686,8 +871,10 @@ def extract_ai_tools_insights(latest: list, history: list) -> list:
     # Category breakdown
     cats = {}
     for row in latest:
-        cat = row.get("category", "?")
-        cats[cat] = cats.get(cat, 0) + 1
+        values = str(row.get("categories") or row.get("category") or row.get("source_category") or "?").split(",")
+        for value in values:
+            cat = value.strip() or "?"
+            cats[cat] = cats.get(cat, 0) + 1
 
     if cats:
         insights.append({
@@ -713,6 +900,12 @@ EXTRACTORS = {
     "flights": extract_flight_insights,
     "opportunities": extract_opportunity_insights,
     "exchange_rates": extract_exchange_rate_insights,
+    "marketplace": extract_marketplace_insights,
+    "restaurants": extract_restaurant_insights,
+    "restaurants_upcountry": extract_restaurant_insights,
+    "news": extract_news_insights,
+    "business_news": extract_business_news_insights,
+    "tech_news": extract_tech_news_insights,
     "property": extract_property_insights,
     "seo": extract_seo_insights,
     "ai_tools": extract_ai_tools_insights,

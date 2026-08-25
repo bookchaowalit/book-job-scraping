@@ -81,6 +81,29 @@ gates stay unit-testable.
 
 Full detail: [`SAFETY.md`](./SAFETY.md).
 
+## Current runtime state (2026-08-25)
+
+- Collection cron is installed every five minutes and uses the repository
+  `.venv` plus `flock` to prevent overlapping runs.
+- The enabled collection surface is twenty configured jobs, including a
+  dedicated NotebookSpec RSS adapter. Four jobs remain blocked:
+  `seo_rankings`, `flight_prices`, `money_opportunities`, and
+  `ddproperty_condos` (parser ready; httpx still Cloudflare 403).
+- Domain adapters also live in sibling repos (`book-news-scraping`,
+  `book-property-scraping`, `book-restaurant-scraping`,
+  `book-ecommerce-scraping`). This repository remains the compatibility
+  scheduler until those repos have their own cron.
+- `config/source_coverage.yaml` tracks 24 jobs across 12 business lanes and
+  orders acquisition as API/CLI/RSS before scraping, with a priority queue for
+  missing adapters.
+- Collection health is green when the four core artifacts are fresh:
+  `job_postings.csv`, `matched_jobs.csv`, `apply_tracker.csv`, and
+  `job_descriptions.csv`.
+- The latest verification recorded 1,647 postings, 118 matches, 106
+  `discovered` tracker rows, 10 descriptions, and 5 resume variants.
+- OpenRouter enrichment, Telegram notifications, and live ATS/email
+  submission are optional or gated and were not enabled by this change.
+
 ## Architecture notes
 
 - Hexagonal core under `core/` + engine adapters (historical multi-category
@@ -120,3 +143,7 @@ Full detail: [`SAFETY.md`](./SAFETY.md).
 
 - **2026-08-06/07:** Path migration + safety gates + SAFETY.md.  
 - **2026-08-11:** Producer contract PRODUCT.md; tests re-verified 17/17; no bulk commit.
+- **2026-08-24/25:** Collection cron and health monitor verified end-to-end; core
+  artifacts green; absent adapter jobs explicitly disabled.
+- **2026-08-25:** Nested commit of coverage registry, enabled adapters, and
+  tests. NotebookSpec RSS enabled. DDproperty parser ready but httpx blocked.

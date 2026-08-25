@@ -2,6 +2,7 @@
 # Scrape Job Schedule Configuration
 # ============================================================
 # Each job defines what to scrape, which engine to use, and how often.
+# Business/source coverage and restoration priority: source_coverage.yaml
 #
 # Schedule format: cron expression (minute hour day month weekday)
 #   "0 * * * *"     = every hour
@@ -39,12 +40,15 @@ jobs:
   - name: notebookspec_tech
     category: news
     engine: rss
-    url: "https://notebookspec.com/web/feed/"
+    url: "https://notebookspec.com/web/feed"
     schedule: "0 */6 * * *"
     enabled: true
     rate_limit: 2.0
-    scraper_module: "ecommerce.shopee_scraper"
+    scraper_module: "news.notebookspec_scraper"
     scraper_class: "NotebookspecScraper"
+    params:
+      feed_url: "https://notebookspec.com/web/feed"
+      limit: 50
 
   - name: matichon_news
     category: news
@@ -55,6 +59,9 @@ jobs:
     rate_limit: 2.0
     scraper_module: "news.matichon_scraper"
     scraper_class: "MatichonScraper"
+    params:
+      feed_url: "https://www.matichon.co.th/feed"
+      limit: 50
 
   # ── CLASSIFIEDS (every 6 hours) ──────────────────────────
   - name: kaidee_classifieds
@@ -64,8 +71,11 @@ jobs:
     schedule: "0 */6 * * *"
     enabled: true
     rate_limit: 3.0
-    scraper_module: "ecommerce.lazada_scraper"
+    scraper_module: "ecommerce.kaidee_scraper"
     scraper_class: "KaideeScraper"
+    params:
+      urls:
+        - "https://www.kaidee.com/"
 
   # ── BUSINESSES / RESTAURANTS (weekly) ────────────────────
   - name: wongnai_bangkok
@@ -80,9 +90,10 @@ jobs:
     params:
       locations:
         - bangkok
-        - chiangmai
-        - phuket
+      page_size: 100
       max_pages: 3
+      min_rows: 20
+      output_stem: wongnai_bangkok
 
   - name: wongnai_upcountry
     category: businesses
@@ -98,7 +109,11 @@ jobs:
         - khonkaen
         - korat
         - pattaya
-      max_pages: 2
+      page_size: 100
+      max_pages: 3
+      min_rows: 20
+      output_stem: wongnai_upcountry
+      source_url: "https://www.wongnai.com/restaurants?locationKey=6"
 
   # ── NEWS (every 2 hours) ─────────────────────────────────
   - name: thai_business_news
@@ -108,37 +123,32 @@ jobs:
     schedule: "0 */2 * * *"
     enabled: true
     rate_limit: 1.0
-    scraper_module: "news.thai_news_scraper"
-    scraper_class: "ThaiNewsScraper"
+    scraper_module: "news.thai_business_scraper"
+    scraper_class: "ThaiBusinessNewsScraper"
     params:
-      language: en
-      feeds:
-        - bangkok_post_business
-        - bangkok_post_tech
+      feed_url: "https://www.bangkokpost.com/rss/data/business.xml"
+      limit: 50
 
   - name: thai_tech_news
     category: news
     engine: rss
-    url: "https://www.blognone.com/atom"
+    url: "https://www.blognone.com/atom.xml"
     schedule: "0 */2 * * *"
     enabled: true
     rate_limit: 1.0
-    scraper_module: "news.thai_news_scraper"
-    scraper_class: "ThaiNewsScraper"
+    scraper_module: "news.thai_tech_scraper"
+    scraper_class: "ThaiTechNewsScraper"
     params:
-      language: th
-      feeds:
-        - techsauce
-        - techcrunch
-        - thaiger_business
+      feed_url: "https://www.blognone.com/atom.xml"
+      limit: 50
 
   # ── REAL ESTATE (daily) ──────────────────────────────────
   - name: ddproperty_condos
     category: property
     engine: httpx
-    url: "https://www.ddproperty.com/condo-for-rent/bangkok"
+    url: "https://www.ddproperty.com/เช่าคอนโด"
     schedule: "0 8 * * *"
-    enabled: true
+    enabled: false  # pending: httpx collection is Cloudflare 403; parser is ready for Thai /เช่าคอนโด
     rate_limit: 3.0
     max_pages: 5
     scraper_module: "property.ddproperty_scraper"
@@ -297,7 +307,7 @@ jobs:
     engine: firecrawl
     url: "https://api.firecrawl.dev/v1/search"
     schedule: "0 8 * * *"
-    enabled: true
+    enabled: false  # disabled: scripts.scrape_seo_rankings is not present in this checkout
     rate_limit: 3.0
     scraper_module: "scripts.scrape_seo_rankings"
     scraper_class: "SEORankingScraper"
@@ -383,27 +393,32 @@ jobs:
         - TSLA
         - SPY
         - QQQ
+      range: 5d
+      interval: 1d
       alert_threshold: 3.0
 
   # ── AI TOOLS (daily) ───────────────────────────────────────
   - name: ai_tools
     category: ai
-    engine: firecrawl
-    url: "https://www.producthunt.com"
+    engine: httpx
+    url: "https://www.futurepedia.io/ai-tools"
     schedule: "0 11 * * *"
     enabled: true
-    rate_limit: 5.0
+    rate_limit: 4.0
     scraper_module: "scripts.scrape_ai_tools"
     scraper_class: "AIToolScraper"
     params:
       sources:
-        - producthunt
-        - taft
-        - search
+        - futurepedia
       categories:
-        - ai
-        - developer-tools
+        - ai-agents
         - productivity
+        - code
+      base_url: "https://www.futurepedia.io/ai-tools"
+      max_pages: 2
+      limit: 100
+      min_rows: 10
+      output_stem: ai_tools
 
   # ── DEFI YIELDS (daily 7am) ────────────────────────────
   - name: defi_yields
@@ -423,6 +438,12 @@ jobs:
         - Polygon
         - Base
       min_apy: 5.0
+      min_tvl_usd: 1000000
+      max_apy: 100000
+      limit: 200
+      min_rows: 10
+      max_age_hours: 24
+      output_stem: defi_yields
 
   # ── FLIGHT PRICES (daily) ──────────────────────────────────
   - name: flight_prices
@@ -430,7 +451,7 @@ jobs:
     engine: firecrawl+httpx
     url: "https://api.tequila.kiwi.com/v2/search"
     schedule: "0 7 * * 1"
-    enabled: true
+    enabled: false  # disabled: scripts.scrape_flight_prices is not present in this checkout
     rate_limit: 10.0
     scraper_module: "scripts.scrape_flight_prices"
     scraper_class: "FlightPriceScraper"
@@ -467,7 +488,7 @@ jobs:
     engine: httpx
     url: "https://www.etsy.com/market/trending"
     schedule: "0 10 * * *"
-    enabled: true
+    enabled: false  # disabled: opportunities.scrape_money_opportunities is not present in this checkout
     rate_limit: 5.0
     scraper_module: "opportunities.scrape_money_opportunities"
     scraper_class: "MoneyOpportunityScraper"

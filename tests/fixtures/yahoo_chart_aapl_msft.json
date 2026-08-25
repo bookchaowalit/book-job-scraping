@@ -1,0 +1,60 @@
+{
+  "AAPL": {
+    "chart": {
+      "result": [
+        {
+          "meta": {
+            "currency": "USD",
+            "symbol": "AAPL",
+            "exchangeName": "NMS",
+            "fullExchangeName": "NasdaqGS",
+            "chartPreviousClose": 300.0,
+            "dataGranularity": "1d"
+          },
+          "timestamp": [1787059800, 1787146200, 1787232600],
+          "indicators": {
+            "quote": [
+              {
+                "open": [298.0, 301.0, 304.0],
+                "high": [302.0, 305.0, 308.0],
+                "low": [297.0, 300.0, 303.0],
+                "close": [300.0, 303.0, 306.0],
+                "volume": [1000000, 1100000, 1200000]
+              }
+            ]
+          }
+        }
+      ],
+      "error": null
+    }
+  },
+  "MSFT": {
+    "chart": {
+      "result": [
+        {
+          "meta": {
+            "currency": "USD",
+            "symbol": "MSFT",
+            "exchangeName": "NMS",
+            "fullExchangeName": "NasdaqGS",
+            "chartPreviousClose": 400.0,
+            "dataGranularity": "1d"
+          },
+          "timestamp": [1787059800, 1787146200, 1787232600],
+          "indicators": {
+            "quote": [
+              {
+                "open": [398.0, 402.0, 404.0],
+                "high": [401.0, 405.0, 410.0],
+                "low": [397.0, 401.0, 403.0],
+                "close": [400.0, 404.0, 408.0],
+                "volume": [2000000, 2100000, 2200000]
+              }
+            ]
+          }
+        }
+      ],
+      "error": null
+    }
+  }
+}

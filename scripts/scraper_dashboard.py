@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Scraper Dashboard — aggregates all 10 domain scraper outputs into one view.
+ Scraper Dashboard — aggregates configured domain scraper outputs into one view.
 Generates a JSON snapshot + console report with alerts, new items, and trends.
 
 Outputs:
@@ -82,16 +82,16 @@ def load_opportunity_items(*, history: bool = False, limit: int = 200) -> tuple[
 SCRAPER_SOURCES = {
     "crypto": {
         "name": "Crypto Prices",
-        "latest": ROOT / "domains" / "book-finance" / "data" / "crypto_prices.csv",
-        "history": ROOT / "domains" / "book-finance" / "data" / "crypto_history.csv",
-        "alert_field": "change_pct_24h",
+        "latest": ROOT / "data" / "exported" / "crypto_prices.csv",
+        "history": ROOT / "data" / "exported" / "crypto_history.csv",
+        "alert_field": "change_24h_pct",
         "alert_threshold": 5.0,
         "icon": "📈",
     },
     "exchange_rates": {
         "name": "Exchange Rates",
-        "latest": ROOT / "domains" / "book-finance" / "data" / "exchange_rates.csv",
-        "history": ROOT / "domains" / "book-finance" / "data" / "exchange_history.csv",
+        "latest": ROOT / "data" / "exported" / "exchange_rates.csv",
+        "history": ROOT / "data" / "exported" / "exchange_history.csv",
         "alert_field": "change_pct",
         "alert_threshold": 0.5,
         "icon": "💱",
@@ -129,26 +129,74 @@ SCRAPER_SOURCES = {
         "alert_threshold": 0,
         "icon": "💼",
     },
+    "marketplace": {
+        "name": "Kaidee Classifieds",
+        "latest": ROOT / "data" / "exported" / "kaidee_classifieds.csv",
+        "history": ROOT / "data" / "exported" / "kaidee_classifieds_history.csv",
+        "alert_field": None,
+        "alert_threshold": 0,
+        "icon": "🛒",
+    },
+    "restaurants": {
+        "name": "Wongnai Bangkok",
+        "latest": ROOT / "data" / "exported" / "wongnai_bangkok.csv",
+        "history": ROOT / "data" / "exported" / "wongnai_bangkok_history.csv",
+        "alert_field": None,
+        "alert_threshold": 0,
+        "icon": "🍜",
+    },
+    "restaurants_upcountry": {
+        "name": "Wongnai Upcountry",
+        "latest": ROOT / "data" / "exported" / "wongnai_upcountry.csv",
+        "history": ROOT / "data" / "exported" / "wongnai_upcountry_history.csv",
+        "alert_field": None,
+        "alert_threshold": 0,
+        "icon": "🗺️",
+    },
+    "news": {
+        "name": "Matichon News",
+        "latest": ROOT / "data" / "exported" / "matichon_news.csv",
+        "history": ROOT / "data" / "exported" / "matichon_news_history.csv",
+        "alert_field": None,
+        "alert_threshold": 0,
+        "icon": "📰",
+    },
+    "business_news": {
+        "name": "Bangkok Post Business",
+        "latest": ROOT / "data" / "exported" / "thai_business_news.csv",
+        "history": ROOT / "data" / "exported" / "thai_business_news_history.csv",
+        "alert_field": None,
+        "alert_threshold": 0,
+        "icon": "💼",
+    },
+    "tech_news": {
+        "name": "Blognone Technology",
+        "latest": ROOT / "data" / "exported" / "thai_tech_news.csv",
+        "history": ROOT / "data" / "exported" / "thai_tech_news_history.csv",
+        "alert_field": None,
+        "alert_threshold": 0,
+        "icon": "💻",
+    },
     "stocks": {
         "name": "Stock Prices",
-        "latest": ROOT / "domains" / "book-finance" / "data" / "stock_prices.csv",
-        "history": ROOT / "domains" / "book-finance" / "data" / "stock_history.csv",
+        "latest": ROOT / "data" / "exported" / "stock_prices.csv",
+        "history": ROOT / "data" / "exported" / "stock_history.csv",
         "alert_field": "change_pct",
         "alert_threshold": 3.0,
         "icon": "📊",
     },
     "ai_tools": {
         "name": "AI Tools",
-        "latest": ROOT / "domains" / "book-ai" / "data" / "ai_tools.csv",
-        "history": ROOT / "domains" / "book-ai" / "data" / "ai_tools_history.csv",
+        "latest": ROOT / "data" / "exported" / "ai_tools.csv",
+        "history": ROOT / "data" / "exported" / "ai_tools_history.csv",
         "alert_field": None,
         "alert_threshold": 0,
         "icon": "🤖",
     },
     "defi": {
         "name": "DeFi Yields",
-        "latest": ROOT / "domains" / "book-finance" / "data" / "defi_yields.csv",
-        "history": ROOT / "domains" / "book-finance" / "data" / "defi_yields_history.csv",
+        "latest": ROOT / "data" / "exported" / "defi_yields.csv",
+        "history": ROOT / "data" / "exported" / "defi_yields_history.csv",
         "alert_field": "apy",
         "alert_threshold": 20.0,
         "icon": "🏦",
@@ -228,9 +276,9 @@ def detect_alerts(source_key: str, source: dict, data: list) -> list:
             if abs(val) >= threshold:
                 label = ""
                 if source_key == "crypto":
-                    label = f"{row.get('coin', '?').upper()}: {val:+.2f}% (${row.get('price', '?')})"
+                    label = f"{row.get('coin_id', '?').upper()} {row.get('currency', '').upper()}: {val:+.2f}% ({row.get('price', '?')})"
                 elif source_key == "exchange_rates":
-                    label = f"{row.get('symbol', '?')}: {val:+.3f}% ({row.get('rate', '?')})"
+                    label = f"{row.get('base', '?')}->{row.get('currency', '?')}: {val:+.3f}% ({row.get('rate', '?')})"
                 elif source_key == "stocks":
                     label = f"{row.get('symbol', '?')}: {val:+.2f}% (${row.get('price', '?')})"
                 elif source_key == "defi":
@@ -780,7 +828,11 @@ def main(format="both", output=None, section=None, json_only=False):
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(dashboard, f, indent=2, ensure_ascii=False)
 
-    if json_only or format in ("json", "both"):
+    if json_only:
+        print(json.dumps(dashboard, ensure_ascii=False))
+        return dashboard
+
+    if format in ("json", "both"):
         print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] Dashboard saved to {output_path}")
 
     if not json_only and format in ("text", "both"):
@@ -802,4 +854,15 @@ def main(format="both", output=None, section=None, json_only=False):
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Generate the scraper dashboard")
+    parser.add_argument("--json-only", action="store_true", help="Write JSON only to stdout")
+    parser.add_argument("--format", choices=["text", "json", "both"], default="both")
+    parser.add_argument("--output", help="JSON output path")
+    parser.add_argument("--section", help="Comma-separated dashboard sections")
+    args = parser.parse_args()
+    main(
+        format=args.format,
+        output=args.output,
+        section=args.section,
+        json_only=args.json_only,
+    )

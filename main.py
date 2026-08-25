@@ -92,12 +92,11 @@ def load_category_scraper(job):
     # Build constructor kwargs based on scraper type
     ctor_kwargs = {}
 
-    # WongnaiScraper: categories, areas
+    # WongnaiScraper: preserve the shared location/pagination contract.
     if class_name == "WongnaiScraper":
-        if "categories" in params:
-            ctor_kwargs["categories"] = params["categories"]
-        if "areas" in params:
-            ctor_kwargs["areas"] = params["areas"]
+        for key in ("categories", "areas", "locations", "page_size", "min_rows", "output_stem", "source_url"):
+            if key in params:
+                ctor_kwargs[key] = params[key]
 
     # ThaiNewsScraper: feeds
     elif class_name == "ThaiNewsScraper":
