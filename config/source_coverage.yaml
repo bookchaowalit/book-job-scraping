@@ -189,7 +189,7 @@ sources:
     business_value: high
     contract: property-capture
     owner_repository: book-property-scraping
-    next_action: "Thai /เช่าคอนโด returns priced __NEXT_DATA__ listings via curl; httpx collection is Cloudflare 403. Re-enable after a scraper-client smoke returns Bangkok priced rows."
+    next_action: "Thai /เช่าคอนโด parser is ready, but live collection now hits a Cloudflare JS challenge (httpx, curl, and headless Chromium). Re-enable only after a scraper-client smoke returns Bangkok priced rows."
 
   - job: crypto_prices
     business: finance
