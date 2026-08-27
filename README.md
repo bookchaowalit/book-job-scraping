@@ -102,7 +102,7 @@ The scheduler state is written to `data/schedule_state.json`.
 | `hackernews` | discovery | httpx | Daily 9:00 AM | enabled |
 | `devto_articles` | discovery | httpx | Daily 10:00 AM | enabled |
 | `producthunt_top` | discovery | httpx | Daily 11:00 AM | enabled |
-| `ai_tools` | ai | Futurepedia HTML | Daily 11:00 AM | enabled |
+| `ai_tools` | ai | Futurepedia HTML | Daily 11:00 AM | migrated to book-ai-tools-data |
 | `property_listings` | property | firecrawl | Daily 9:00 AM | enabled |
 | `notebookspec_tech` | news | RSS | Every 6 hours | migrated to book-news-scraping |
 | `ddproperty_condos` | property | httpx + Thai `__NEXT_DATA__` | Daily 8:00 AM | blocked: httpx Cloudflare 403 |
@@ -116,7 +116,7 @@ The scheduler state is written to `data/schedule_state.json`.
 | `matichon_news` | news | Matichon RSS | Every 4 hours | migrated to book-news-scraping |
 | `thai_business_news` | news | Bangkok Post Business RSS | Every 2 hours | migrated to book-news-scraping |
 | `thai_tech_news` | news | Blognone Atom | Every 2 hours | migrated to book-news-scraping |
-| `seo_rankings` | marketing | httpx public pages | Daily 8:00 AM | enabled |
+| `seo_rankings` | marketing | httpx public pages | Daily 8:00 AM | migrated to book-seo-data |
 | `job_postings` | jobs | firecrawl+httpx | Every 6 hours | enabled |
 | `job_match_filter` | jobs | local | Daily 7:30 AM | enabled |
 | `scraper_dashboard` | operations | local | 8:15, 11:15, 20:15 | enabled |

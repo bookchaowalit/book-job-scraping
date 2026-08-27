@@ -307,7 +307,7 @@ jobs:
     engine: httpx
     url: "https://bookchaowalit.com/"
     schedule: "0 8 * * *"
-    enabled: true
+    enabled: false  # migrated: book-seo-data cron owns this feed
     rate_limit: 3.0
     scraper_module: "scripts.scrape_seo_rankings"
     scraper_class: "SEORankingScraper"
@@ -403,7 +403,7 @@ jobs:
     engine: httpx
     url: "https://www.futurepedia.io/ai-tools"
     schedule: "0 11 * * *"
-    enabled: true
+    enabled: false  # migrated: book-ai-tools-data cron owns this feed
     rate_limit: 4.0
     scraper_module: "scripts.scrape_ai_tools"
     scraper_class: "AIToolScraper"

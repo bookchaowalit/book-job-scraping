@@ -304,12 +304,12 @@ sources:
     engine: httpx
     schedule: "0 8 * * *"
     module: scripts.scrape_seo_rankings
-    status: active
+    status: migrated
     priority: P2
     business_value: medium
     contract: marketing-capture
     owner_repository: book-seo-data
-    next_action: "Maintain bounded HTTPS homepage checks for owned domains. Do not collect SERP ranks on the free path; lake/API stays in book-seo-data."
+    next_action: "Collected by book-seo-data/scripts/run_seo.py on the domain cron. Keep this local job disabled."
 
   - job: job_postings
     business: jobs
@@ -349,12 +349,12 @@ sources:
     engine: httpx
     schedule: "0 11 * * *"
     module: scripts.scrape_ai_tools
-    status: active
+    status: migrated
     priority: P2
     business_value: medium
     contract: ai-tool-capture
     owner_repository: book-ai-tools-data
-    next_action: "Maintain bounded Futurepedia category/page capture, canonical tool URLs, category attribution, and source availability monitoring."
+    next_action: "Collected by book-ai-tools-data/scripts/run_ai_tools.py on the domain cron. Keep this local job disabled."
 
   - job: defi_yields
     business: finance
