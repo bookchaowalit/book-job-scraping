@@ -236,7 +236,11 @@ def fetch_pools(api_url: str = API_URL) -> tuple[bytes, dict[str, Any], str]:
     response = httpx.get(
         api_url,
         headers={
-            "User-Agent": "book-job-scraping/1.0",
+            # DefiLlama rejects python-httpx / custom UAs with a non-JSON Allow body.
+            "User-Agent": (
+                "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) "
+                "Gecko/20100101 Firefox/128.0"
+            ),
             "Accept": "application/json",
         },
         timeout=60,
@@ -248,7 +252,12 @@ def fetch_pools(api_url: str = API_URL) -> tuple[bytes, dict[str, Any], str]:
     provider_updated_at = response.headers.get("date", "")
     if not provider_updated_at:
         raise ValueError("DefiLlama response is missing Date header")
-    payload = response.json()
+    try:
+        payload = response.json()
+    except json.JSONDecodeError as exc:
+        raise ValueError("DefiLlama response is not JSON") from exc
+    if not isinstance(payload, dict) or payload.get("status") != "success":
+        raise ValueError("DefiLlama response is missing a successful pools payload")
     return response.content, payload, normalize_provider_timestamp(provider_updated_at)
 
 

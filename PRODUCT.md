@@ -81,14 +81,13 @@ gates stay unit-testable.
 
 Full detail: [`SAFETY.md`](./SAFETY.md).
 
-## Current runtime state (2026-08-25)
+## Current runtime state (2026-08-27)
 
 - Collection cron is installed every five minutes and uses the repository
   `.venv` plus `flock` to prevent overlapping runs.
-- The enabled collection surface is nine configured jobs. News, Wongnai,
-  Kaidee, SEO, AI tools, crypto, FX, and stocks are `migrated` to domain
-  crons. `defi_yields` stays local because DefiLlama currently returns a
-  non-JSON body. Three jobs remain blocked: `flight_prices`,
+- The enabled collection surface is eight configured jobs. News, Wongnai,
+  Kaidee, SEO, AI tools, crypto, FX, stocks, and DefiLlama yields are
+  `migrated` to domain crons. Three jobs remain blocked: `flight_prices`,
   `money_opportunities`, and `ddproperty_condos`.
 - Domain adapters also live in sibling repos with their own crons.
 - `config/source_coverage.yaml` tracks 24 jobs across 12 business lanes and

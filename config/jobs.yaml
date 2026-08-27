@@ -426,7 +426,7 @@ jobs:
     engine: httpx
     url: "https://yields.llama.fi/pools"
     schedule: "0 7 * * *"
-    enabled: true
+    enabled: false  # migrated: book-defi-data cron owns this feed
     rate_limit: 1.0
     scraper_module: "scripts.scrape_defi_yields"
     scraper_class: "DeFiYieldScraper"

@@ -199,19 +199,23 @@ The bounded raw pages and CSV projections remain local producer artifacts for
 the downstream AI discovery data product. Review Futurepedia terms and the
 4-second rate limit before increasing category/page bounds.
 
-For `defi_yields`, the adapter calls DefiLlama's public pools API once per run.
-It maps configured `Optimism` to the provider's `OP Mainnet`, keeps only the
-configured chains with APY at least 5% and TVL at least $1M, caps the snapshot
-at 200 pools, and rejects responses older than 24 hours:
+For `defi_yields`, collection is migrated to `book-defi-data`. The adapter
+still lives here for tests, but the local scheduler job is disabled. The
+domain cron calls DefiLlama's public pools API with a Firefox User-Agent
+(python-httpx UAs return a non-JSON Allow body), maps configured `Optimism`
+to the provider's `OP Mainnet`, keeps only the configured chains with APY at
+least 5% and TVL at least $1M, caps the snapshot at 200 pools, and rejects
+responses older than 24 hours:
 
 ```bash
 .venv/bin/python -m unittest discover -s tests -p 'test_defi_yields.py' -v
-.venv/bin/python main.py run defi_yields
+# live collection: book-defi-data/scripts/run_defi.py
 ```
 
-The raw response and CSV projections remain local producer artifacts. Review
-DefiLlama freshness, pool/APY/TVL validation, source terms, and the 1-second
-rate limit before changing chain or threshold bounds.
+The raw response and CSV projections remain producer artifacts in
+`book-defi-data/data/exported`. Review DefiLlama freshness, pool/APY/TVL
+validation, source terms, and the 1-second rate limit before changing chain
+or threshold bounds.
 
 ## Health check
 

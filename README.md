@@ -109,7 +109,7 @@ The scheduler state is written to `data/schedule_state.json`.
 | `crypto_prices` | finance | CoinGecko API | Every 4 hours | migrated to book-crypto-data |
 | `exchange_rates` | finance | Frankfurter API | Every 6 hours | migrated to book-fx-data |
 | `stock_prices` | finance | Yahoo Finance chart API | Daily 8:00 AM | migrated to book-stock-data |
-| `defi_yields` | finance | DefiLlama pools API | Daily 7:00 AM | enabled |
+| `defi_yields` | finance | DefiLlama pools API | Daily 7:00 AM | migrated to book-defi-data |
 | `kaidee_classifieds` | marketplace | Kaidee HTML | Every 6 hours | migrated to book-ecommerce-scraping |
 | `wongnai_bangkok` | businesses | Wongnai HTML | Weekly | migrated to book-restaurant-scraping |
 | `wongnai_upcountry` | businesses | Wongnai HTML | Weekly | migrated to book-restaurant-scraping |
@@ -145,9 +145,10 @@ focused smoke test produces a trustworthy contract-compliant result.
 articles. `thai_business_news` is enabled after its RSS smoke returned 10
 attributed canonical business articles. `thai_tech_news` is enabled after its
 Blognone RSS smoke returned 10 attributed canonical technology articles.
-`defi_yields` is enabled after a live DefiLlama API smoke returned 200 validated
-pools across all five configured chains with a provider timestamp within the
-24-hour freshness bound.
+`defi_yields` is migrated to `book-defi-data` after a Firefox-UA live smoke
+returned 20 validated Ethereum pools with a provider timestamp within the
+24-hour freshness bound. The domain cron uses the same five-chain production
+bounds as the previous local job.
 
 ### Multi-business source coverage
 
@@ -234,11 +235,12 @@ The AI tools adapter writes bounded Futurepedia HTML pages to
 validates canonical `/tool/<slug>` URLs and preserves category, rating, pricing,
 description, and source attribution for collection-only discovery output.
 
-The DeFi adapter writes the validated DefiLlama response to
-`data/exported/defi_yields_raw.json` and the capture projections to
-`data/exported/defi_yields.csv` and `data/exported/defi_yields_history.csv`.
-It normalizes the `Optimism` configuration alias to DefiLlama's `OP Mainnet`,
-requires finite APY/TVL and unique pool IDs, and rejects stale provider responses.
+The DeFi adapter now runs from `book-defi-data`. It writes the validated
+DefiLlama response to `book-defi-data/data/exported/defi_yields_raw.json`
+and the capture projections to `defi_yields.csv` and
+`defi_yields_history.csv`. It uses a Firefox User-Agent, normalizes the
+`Optimism` configuration alias to DefiLlama's `OP Mainnet`, requires finite
+APY/TVL and unique pool IDs, and rejects stale provider responses.
 
 ### Data Freshness Strategy
 

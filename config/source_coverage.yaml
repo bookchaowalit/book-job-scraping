@@ -1,5 +1,5 @@
 schema_version: book-job-scraping.source-coverage.v1
-updated: 2026-08-25
+updated: 2026-08-27
 
 # This registry describes how each business source is acquired. It is
 # intentionally separate from jobs.yaml so product coverage, implementation
@@ -364,12 +364,12 @@ sources:
     engine: httpx
     schedule: "0 7 * * *"
     module: scripts.scrape_defi_yields
-    status: active
+    status: migrated
     priority: P2
     business_value: medium
     contract: finance-capture
     owner_repository: book-defi-data
-    next_action: "Maintain bounded DefiLlama API capture with chain alias, APY/TVL, pool identity, freshness, and provider attribution validation."
+    next_action: "Collected by book-defi-data/scripts/run_defi.py on the domain cron. Keep this local job disabled."
 
   - job: flight_prices
     business: travel
