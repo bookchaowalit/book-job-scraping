@@ -116,14 +116,16 @@ The scheduler state is written to `data/schedule_state.json`.
 | `matichon_news` | news | Matichon RSS | Every 4 hours | enabled |
 | `thai_business_news` | news | Bangkok Post Business RSS | Every 2 hours | enabled |
 | `thai_tech_news` | news | Blognone Atom | Every 2 hours | enabled |
+| `seo_rankings` | marketing | httpx public pages | Daily 8:00 AM | enabled |
 | `job_postings` | jobs | firecrawl+httpx | Every 6 hours | enabled |
 | `job_match_filter` | jobs | local | Daily 7:30 AM | enabled |
 | `scraper_dashboard` | operations | local | 8:15, 11:15, 20:15 | enabled |
 
-Four entries remain blocked in the coverage registry: `seo_rankings`,
-`flight_prices`, and `money_opportunities` still need dedicated adapters, while
-`ddproperty_condos` has a Thai `__NEXT_DATA__` parser and fixture but httpx
-collection is still Cloudflare 403. `notebookspec_tech` is enabled after a
+Three entries remain blocked in the coverage registry: `flight_prices` and
+`money_opportunities` still need dedicated adapters, while
+`ddproperty_condos` has a Thai `__NEXT_DATA__` parser and fixture but live
+collection hits a Cloudflare JS challenge. `seo_rankings` is enabled as a
+public-page provenance check (no SERP ranks on the free path). `notebookspec_tech` is enabled after a
 dedicated RSS adapter returned 20 attributed canonical articles.
 `wongnai_upcountry` is enabled after a three-page live HTML smoke returned 28
 unique restaurants across Khon Kaen, Korat, and Pattaya with city attribution.

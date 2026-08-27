@@ -298,18 +298,18 @@ sources:
 
   - job: seo_rankings
     business: marketing
-    source: Search visibility queries
-    url: "https://api.firecrawl.dev/v1/search"
+    source: Owned public-page provenance
+    url: "https://bookchaowalit.com/"
     channel: scrape
-    engine: firecrawl
+    engine: httpx
     schedule: "0 8 * * *"
     module: scripts.scrape_seo_rankings
-    status: blocked
+    status: active
     priority: P2
     business_value: medium
     contract: marketing-capture
     owner_repository: book-seo-data
-    next_action: "Implement a search-result adapter with domain/ranking evidence and provenance."
+    next_action: "Maintain bounded HTTPS homepage checks for owned domains. Do not collect SERP ranks on the free path; lake/API stays in book-seo-data."
 
   - job: job_postings
     business: jobs

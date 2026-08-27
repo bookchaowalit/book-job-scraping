@@ -304,10 +304,10 @@ jobs:
   # ── SEO RANKINGS (daily) ──────────────────────────────────
   - name: seo_rankings
     category: marketing
-    engine: firecrawl
-    url: "https://api.firecrawl.dev/v1/search"
+    engine: httpx
+    url: "https://bookchaowalit.com/"
     schedule: "0 8 * * *"
-    enabled: false  # disabled: scripts.scrape_seo_rankings is not present in this checkout
+    enabled: true
     rate_limit: 3.0
     scraper_module: "scripts.scrape_seo_rankings"
     scraper_class: "SEORankingScraper"

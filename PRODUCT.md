@@ -85,10 +85,10 @@ Full detail: [`SAFETY.md`](./SAFETY.md).
 
 - Collection cron is installed every five minutes and uses the repository
   `.venv` plus `flock` to prevent overlapping runs.
-- The enabled collection surface is twenty configured jobs, including a
-  dedicated NotebookSpec RSS adapter. Four jobs remain blocked:
-  `seo_rankings`, `flight_prices`, `money_opportunities`, and
-  `ddproperty_condos` (parser ready; httpx still Cloudflare 403).
+- The enabled collection surface is twenty-one configured jobs, including a
+  dedicated NotebookSpec RSS adapter and owned-domain public-page SEO checks.
+  Three jobs remain blocked: `flight_prices`, `money_opportunities`, and
+  `ddproperty_condos` (parser ready; live Cloudflare JS challenge).
 - Domain adapters also live in sibling repos (`book-news-scraping`,
   `book-property-scraping`, `book-restaurant-scraping`,
   `book-ecommerce-scraping`). This repository remains the compatibility
