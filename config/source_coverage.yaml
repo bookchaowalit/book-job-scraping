@@ -79,12 +79,12 @@ sources:
     engine: rss
     schedule: "0 */6 * * *"
     module: news.notebookspec_scraper
-    status: active
+    status: migrated
     priority: P2
     business_value: medium
     contract: news-capture
     owner_repository: book-news-scraping
-    next_action: "Maintain bounded NotebookSpec RSS capture with canonical HTTPS URLs and attribution; durable news lake/API stays downstream."
+    next_action: "Collected by book-news-scraping/scripts/run_feeds.py on the domain cron. Keep this local job disabled."
 
   - job: matichon_news
     business: news
@@ -94,12 +94,12 @@ sources:
     engine: rss
     schedule: "0 */4 * * *"
     module: news.matichon_scraper
-    status: active
+    status: migrated
     priority: P1
     business_value: high
     contract: news-capture
     owner_repository: book-news-scraping
-    next_action: "Maintain bounded Matichon RSS capture, canonical URL validation, publication-date normalization, and attribution fields."
+    next_action: "Collected by book-news-scraping/scripts/run_feeds.py on the domain cron. Keep this local job disabled."
 
   - job: kaidee_classifieds
     business: marketplace
@@ -154,12 +154,12 @@ sources:
     engine: rss
     schedule: "0 */2 * * *"
     module: news.thai_business_scraper
-    status: active
+    status: migrated
     priority: P1
     business_value: high
     contract: news-capture
     owner_repository: book-news-scraping
-    next_action: "Maintain bounded Bangkok Post Business RSS capture, business-section attribution, canonical URL validation, and source-timezone normalization."
+    next_action: "Collected by book-news-scraping/scripts/run_feeds.py on the domain cron. Keep this local job disabled."
 
   - job: thai_tech_news
     business: news
@@ -169,12 +169,12 @@ sources:
     engine: rss
     schedule: "0 */2 * * *"
     module: news.thai_tech_scraper
-    status: active
+    status: migrated
     priority: P1
     business_value: high
     contract: news-capture
     owner_repository: book-news-scraping
-    next_action: "Maintain bounded Blognone Atom capture, technology-section attribution, canonical URL/article ID validation, and feed availability monitoring."
+    next_action: "Collected by book-news-scraping/scripts/run_feeds.py on the domain cron. Keep this local job disabled."
 
   - job: ddproperty_condos
     business: property

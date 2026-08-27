@@ -38,6 +38,9 @@ External job boards
 - `wongnai_upcountry`: Wongnai HTML capture is active after a three-page bounded smoke returned 28 unique restaurants across Khon Kaen, Korat, and Pattaya with city attribution; durable restaurant lake/API ownership remains downstream of this producer.
 - `ai_tools`: Futurepedia HTML capture is active after a six-page bounded smoke returned 62 unique tools with category and canonical URL attribution; durable AI discovery lake/API ownership remains downstream of this producer.
 - `defi_yields`: DefiLlama pools API capture is active after a live smoke returned 200 validated pools across all five configured chains with a fresh provider timestamp; durable DeFi lake/API ownership remains downstream of this producer.
+- News RSS (`notebookspec_tech`, `matichon_news`, `thai_business_news`,
+  `thai_tech_news`) is migrated: local scheduler jobs are disabled; collection
+  runs from `book-news-scraping`.
 - `notebookspec_tech`: dedicated RSS adapter is active after a bounded live
   smoke returned 20 attributed canonical articles; durable news lake/API
   ownership remains downstream in `book-news-scraping`.

@@ -104,7 +104,7 @@ The scheduler state is written to `data/schedule_state.json`.
 | `producthunt_top` | discovery | httpx | Daily 11:00 AM | enabled |
 | `ai_tools` | ai | Futurepedia HTML | Daily 11:00 AM | enabled |
 | `property_listings` | property | firecrawl | Daily 9:00 AM | enabled |
-| `notebookspec_tech` | news | RSS | Every 6 hours | enabled |
+| `notebookspec_tech` | news | RSS | Every 6 hours | migrated to book-news-scraping |
 | `ddproperty_condos` | property | httpx + Thai `__NEXT_DATA__` | Daily 8:00 AM | blocked: httpx Cloudflare 403 |
 | `crypto_prices` | finance | CoinGecko API | Every 4 hours | enabled |
 | `exchange_rates` | finance | Frankfurter API | Every 6 hours | enabled |
@@ -113,9 +113,9 @@ The scheduler state is written to `data/schedule_state.json`.
 | `kaidee_classifieds` | marketplace | Kaidee HTML | Every 6 hours | enabled |
 | `wongnai_bangkok` | businesses | Wongnai HTML | Weekly | enabled |
 | `wongnai_upcountry` | businesses | Wongnai HTML | Weekly | enabled |
-| `matichon_news` | news | Matichon RSS | Every 4 hours | enabled |
-| `thai_business_news` | news | Bangkok Post Business RSS | Every 2 hours | enabled |
-| `thai_tech_news` | news | Blognone Atom | Every 2 hours | enabled |
+| `matichon_news` | news | Matichon RSS | Every 4 hours | migrated to book-news-scraping |
+| `thai_business_news` | news | Bangkok Post Business RSS | Every 2 hours | migrated to book-news-scraping |
+| `thai_tech_news` | news | Blognone Atom | Every 2 hours | migrated to book-news-scraping |
 | `seo_rankings` | marketing | httpx public pages | Daily 8:00 AM | enabled |
 | `job_postings` | jobs | firecrawl+httpx | Every 6 hours | enabled |
 | `job_match_filter` | jobs | local | Daily 7:30 AM | enabled |
@@ -125,7 +125,9 @@ Three entries remain blocked in the coverage registry: `flight_prices` and
 `money_opportunities` still need dedicated adapters, while
 `ddproperty_condos` has a Thai `__NEXT_DATA__` parser and fixture but live
 collection hits a Cloudflare JS challenge. `seo_rankings` is enabled as a
-public-page provenance check (no SERP ranks on the free path). `notebookspec_tech` is enabled after a
+public-page provenance check (no SERP ranks on the free path). News RSS jobs
+are migrated to `book-news-scraping` (`scripts/run_feeds.py`, cron every 2
+hours). `notebookspec_tech` was enabled after a
 dedicated RSS adapter returned 20 attributed canonical articles.
 `wongnai_upcountry` is enabled after a three-page live HTML smoke returned 28
 unique restaurants across Khon Kaen, Korat, and Pattaya with city attribution.

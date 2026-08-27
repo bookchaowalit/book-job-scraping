@@ -42,7 +42,7 @@ jobs:
     engine: rss
     url: "https://notebookspec.com/web/feed"
     schedule: "0 */6 * * *"
-    enabled: true
+    enabled: false  # migrated: book-news-scraping cron owns this feed
     rate_limit: 2.0
     scraper_module: "news.notebookspec_scraper"
     scraper_class: "NotebookspecScraper"
@@ -55,7 +55,7 @@ jobs:
     engine: rss
     url: "https://www.matichon.co.th/feed"
     schedule: "0 */4 * * *"
-    enabled: true
+    enabled: false  # migrated: book-news-scraping cron owns this feed
     rate_limit: 2.0
     scraper_module: "news.matichon_scraper"
     scraper_class: "MatichonScraper"
@@ -121,7 +121,7 @@ jobs:
     engine: rss
     url: "https://www.bangkokpost.com/rss/data/business.xml"
     schedule: "0 */2 * * *"
-    enabled: true
+    enabled: false  # migrated: book-news-scraping cron owns this feed
     rate_limit: 1.0
     scraper_module: "news.thai_business_scraper"
     scraper_class: "ThaiBusinessNewsScraper"
@@ -134,7 +134,7 @@ jobs:
     engine: rss
     url: "https://www.blognone.com/atom.xml"
     schedule: "0 */2 * * *"
-    enabled: true
+    enabled: false  # migrated: book-news-scraping cron owns this feed
     rate_limit: 1.0
     scraper_module: "news.thai_tech_scraper"
     scraper_class: "ThaiTechNewsScraper"

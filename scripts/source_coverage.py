@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 JOBS_CONFIG = ROOT / "config" / "jobs.yaml"
 COVERAGE_CONFIG = ROOT / "config" / "source_coverage.yaml"
 ALLOWED_CHANNELS = {"api", "cli", "rss", "scrape", "hybrid", "local"}
-ALLOWED_STATUSES = {"active", "blocked", "planned"}
+ALLOWED_STATUSES = {"active", "blocked", "planned", "migrated"}
 ALLOWED_PRIORITIES = {"P0", "P1", "P2"}
 PRIORITY_ORDER = {"P0": 0, "P1": 1, "P2": 2}
 
@@ -122,6 +122,11 @@ def validate() -> tuple[dict, list[str], list[str]]:
             errors.append(f"{name}: enabled scheduler job must have status=active")
         if not enabled and status == "active":
             errors.append(f"{name}: disabled scheduler job cannot have status=active")
+        if status == "migrated":
+            if enabled:
+                errors.append(f"{name}: migrated coverage must disable the local scheduler job")
+            if not entry.get("owner_repository"):
+                errors.append(f"{name}: migrated coverage requires owner_repository")
         if channel == "local" and job.get("engine") != "local":
             errors.append(f"{name}: local channel requires engine=local")
         if channel != "local" and not job.get("url"):
@@ -143,6 +148,7 @@ def validate() -> tuple[dict, list[str], list[str]]:
         "active": sum(1 for entry in coverage_by_name.values() if entry.get("status") == "active"),
         "blocked": sum(1 for entry in coverage_by_name.values() if entry.get("status") == "blocked"),
         "planned": sum(1 for entry in coverage_by_name.values() if entry.get("status") == "planned"),
+        "migrated": sum(1 for entry in coverage_by_name.values() if entry.get("status") == "migrated"),
         "by_business": dict(Counter(entry.get("business", "unknown") for entry in coverage_by_name.values())),
         "by_channel": dict(Counter(entry.get("channel", "unknown") for entry in coverage_by_name.values())),
         "restoration_queue": [
@@ -154,7 +160,11 @@ def validate() -> tuple[dict, list[str], list[str]]:
                 "next_action": entry.get("next_action"),
             }
             for entry in sorted(
-                (item for item in coverage_by_name.values() if item.get("status") != "active"),
+                (
+                    item
+                    for item in coverage_by_name.values()
+                    if item.get("status") not in {"active", "migrated"}
+                ),
                 key=lambda item: (PRIORITY_ORDER.get(item.get("priority"), 99), item.get("job", "")),
             )
         ],
@@ -181,7 +191,8 @@ def main() -> int:
         print("=" * 72)
         print(
             f"Sources: {summary['sources']} | active: {summary['active']} | "
-            f"blocked: {summary['blocked']} | planned: {summary['planned']}"
+            f"blocked: {summary['blocked']} | planned: {summary['planned']} | "
+            f"migrated: {summary['migrated']}"
         )
         print(f"By business: {', '.join(f'{key}={value}' for key, value in sorted(summary['by_business'].items()))}")
         print(f"By channel: {', '.join(f'{key}={value}' for key, value in sorted(summary['by_channel'].items()))}")
