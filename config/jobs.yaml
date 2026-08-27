@@ -163,7 +163,7 @@ jobs:
     engine: httpx
     url: "https://api.coingecko.com/api/v3/simple/price"
     schedule: "0 */4 * * *"
-    enabled: true
+    enabled: false  # migrated: book-crypto-data cron owns this feed
     rate_limit: 2.0
     scraper_module: "scripts.scrape_crypto_prices"
     scraper_class: "CryptoPriceScraper"
@@ -190,7 +190,7 @@ jobs:
     engine: httpx
     url: "https://api.frankfurter.dev/v1/latest"
     schedule: "0 */6 * * *"
-    enabled: true
+    enabled: false  # migrated: book-fx-data cron owns this feed
     rate_limit: 1.0
     scraper_module: "scripts.scrape_exchange_rates"
     scraper_class: "ExchangeRateScraper"
@@ -378,7 +378,7 @@ jobs:
     engine: httpx
     url: "https://query1.finance.yahoo.com/v8/finance/chart"
     schedule: "0 8 * * *"
-    enabled: true
+    enabled: false  # migrated: book-stock-data cron owns this feed
     rate_limit: 1.0
     scraper_module: "scripts.scrape_stock_prices"
     scraper_class: "StockPriceScraper"

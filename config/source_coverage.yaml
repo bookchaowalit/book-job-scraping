@@ -199,12 +199,12 @@ sources:
     engine: httpx
     schedule: "0 */4 * * *"
     module: scripts.scrape_crypto_prices
-    status: active
+    status: migrated
     priority: P1
     business_value: high
     contract: finance-capture
     owner_repository: book-crypto-data
-    next_action: "Maintain bounded CoinGecko API capture, payload validation, and rate-limit monitoring."
+    next_action: "Collected by book-crypto-data/scripts/run_crypto.py on the domain cron. Keep this local job disabled."
 
   - job: exchange_rates
     business: finance
@@ -214,12 +214,12 @@ sources:
     engine: httpx
     schedule: "0 */6 * * *"
     module: scripts.scrape_exchange_rates
-    status: active
+    status: migrated
     priority: P1
     business_value: high
     contract: finance-capture
     owner_repository: book-fx-data
-    next_action: "Maintain bounded Frankfurter API capture, base/symbol validation, and provider-date preservation."
+    next_action: "Collected by book-fx-data/scripts/run_fx.py on the domain cron. Keep this local job disabled."
 
   - job: github_trending
     business: discovery
@@ -334,12 +334,12 @@ sources:
     engine: httpx
     schedule: "0 8 * * *"
     module: scripts.scrape_stock_prices
-    status: active
+    status: migrated
     priority: P1
     business_value: high
     contract: finance-capture
     owner_repository: book-stock-data
-    next_action: "Maintain bounded Yahoo Finance chart capture, symbol/interval validation, timestamp ordering, and provider error monitoring."
+    next_action: "Collected by book-stock-data/scripts/run_stock.py on the domain cron. Keep this local job disabled."
 
   - job: ai_tools
     business: ai

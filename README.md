@@ -106,9 +106,9 @@ The scheduler state is written to `data/schedule_state.json`.
 | `property_listings` | property | firecrawl | Daily 9:00 AM | enabled |
 | `notebookspec_tech` | news | RSS | Every 6 hours | migrated to book-news-scraping |
 | `ddproperty_condos` | property | httpx + Thai `__NEXT_DATA__` | Daily 8:00 AM | blocked: httpx Cloudflare 403 |
-| `crypto_prices` | finance | CoinGecko API | Every 4 hours | enabled |
-| `exchange_rates` | finance | Frankfurter API | Every 6 hours | enabled |
-| `stock_prices` | finance | Yahoo Finance chart API | Daily 8:00 AM | enabled |
+| `crypto_prices` | finance | CoinGecko API | Every 4 hours | migrated to book-crypto-data |
+| `exchange_rates` | finance | Frankfurter API | Every 6 hours | migrated to book-fx-data |
+| `stock_prices` | finance | Yahoo Finance chart API | Daily 8:00 AM | migrated to book-stock-data |
 | `defi_yields` | finance | DefiLlama pools API | Daily 7:00 AM | enabled |
 | `kaidee_classifieds` | marketplace | Kaidee HTML | Every 6 hours | migrated to book-ecommerce-scraping |
 | `wongnai_bangkok` | businesses | Wongnai HTML | Weekly | migrated to book-restaurant-scraping |

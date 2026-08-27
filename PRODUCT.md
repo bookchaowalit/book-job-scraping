@@ -85,12 +85,12 @@ Full detail: [`SAFETY.md`](./SAFETY.md).
 
 - Collection cron is installed every five minutes and uses the repository
   `.venv` plus `flock` to prevent overlapping runs.
-- The enabled collection surface is twelve configured jobs. News, Wongnai,
-  Kaidee, SEO page checks, and Futurepedia AI tools are `migrated` to domain
-  crons. Three jobs remain blocked: `flight_prices`, `money_opportunities`,
-  and `ddproperty_condos`.
-- Domain adapters also live in sibling repos. News, restaurants, Kaidee, SEO,
-  and AI tools have domain crons.
+- The enabled collection surface is nine configured jobs. News, Wongnai,
+  Kaidee, SEO, AI tools, crypto, FX, and stocks are `migrated` to domain
+  crons. `defi_yields` stays local because DefiLlama currently returns a
+  non-JSON body. Three jobs remain blocked: `flight_prices`,
+  `money_opportunities`, and `ddproperty_condos`.
+- Domain adapters also live in sibling repos with their own crons.
 - `config/source_coverage.yaml` tracks 24 jobs across 12 business lanes and
   orders acquisition as API/CLI/RSS before scraping, with a priority queue for
   missing adapters.
