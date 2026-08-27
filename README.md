@@ -110,9 +110,9 @@ The scheduler state is written to `data/schedule_state.json`.
 | `exchange_rates` | finance | Frankfurter API | Every 6 hours | enabled |
 | `stock_prices` | finance | Yahoo Finance chart API | Daily 8:00 AM | enabled |
 | `defi_yields` | finance | DefiLlama pools API | Daily 7:00 AM | enabled |
-| `kaidee_classifieds` | marketplace | Kaidee HTML | Every 6 hours | enabled |
-| `wongnai_bangkok` | businesses | Wongnai HTML | Weekly | enabled |
-| `wongnai_upcountry` | businesses | Wongnai HTML | Weekly | enabled |
+| `kaidee_classifieds` | marketplace | Kaidee HTML | Every 6 hours | migrated to book-ecommerce-scraping |
+| `wongnai_bangkok` | businesses | Wongnai HTML | Weekly | migrated to book-restaurant-scraping |
+| `wongnai_upcountry` | businesses | Wongnai HTML | Weekly | migrated to book-restaurant-scraping |
 | `matichon_news` | news | Matichon RSS | Every 4 hours | migrated to book-news-scraping |
 | `thai_business_news` | news | Bangkok Post Business RSS | Every 2 hours | migrated to book-news-scraping |
 | `thai_tech_news` | news | Blognone Atom | Every 2 hours | migrated to book-news-scraping |

@@ -109,12 +109,12 @@ sources:
     engine: httpx
     schedule: "0 */6 * * *"
     module: ecommerce.kaidee_scraper
-    status: active
+    status: migrated
     priority: P1
     business_value: high
     contract: marketplace-capture
     owner_repository: book-ecommerce-scraping
-    next_action: "Maintain one-page bounded HTML capture, embedded payload validation, canonical listing URLs, and ToS/rate-limit review."
+    next_action: "Collected by book-ecommerce-scraping/scripts/run_marketplace.py on the domain cron. Keep this local job disabled."
 
   - job: wongnai_bangkok
     business: restaurants
@@ -124,12 +124,12 @@ sources:
     engine: httpx
     schedule: "0 0 * * 0"
     module: restaurants.wongnai_scraper
-    status: active
+    status: migrated
     priority: P1
     business_value: medium
     contract: local-business-capture
     owner_repository: book-restaurant-scraping
-    next_action: "Maintain bounded Wongnai HTML capture, Bangkok city attribution across pages, canonical URLs, and terms/rate-limit review."
+    next_action: "Collected by book-restaurant-scraping/scripts/run_restaurants.py on the domain cron. Keep this local job disabled."
 
   - job: wongnai_upcountry
     business: restaurants
@@ -139,12 +139,12 @@ sources:
     engine: httpx
     schedule: "0 0 * * 0"
     module: restaurants.wongnai_scraper
-    status: active
+    status: migrated
     priority: P2
     business_value: medium
     contract: local-business-capture
     owner_repository: book-restaurant-scraping
-    next_action: "Maintain bounded three-page Wongnai capture for khonkaen, korat, and pattaya with city attribution, canonical URLs, and terms/rate-limit review."
+    next_action: "Collected by book-restaurant-scraping/scripts/run_restaurants.py on the domain cron. Keep this local job disabled."
 
   - job: thai_business_news
     business: news

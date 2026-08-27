@@ -69,7 +69,7 @@ jobs:
     engine: httpx
     url: "https://www.kaidee.com/"
     schedule: "0 */6 * * *"
-    enabled: true
+    enabled: false  # migrated: book-ecommerce-scraping cron owns this feed
     rate_limit: 3.0
     scraper_module: "ecommerce.kaidee_scraper"
     scraper_class: "KaideeScraper"
@@ -83,7 +83,7 @@ jobs:
     engine: httpx
     url: "https://www.wongnai.com/restaurants?locationKey=1"
     schedule: "0 0 * * 0"
-    enabled: true
+    enabled: false  # migrated: book-restaurant-scraping cron owns this feed
     rate_limit: 4.0
     scraper_module: "restaurants.wongnai_scraper"
     scraper_class: "WongnaiScraper"
@@ -100,7 +100,7 @@ jobs:
     engine: httpx
     url: "https://www.wongnai.com/restaurants?locationKey=6"
     schedule: "0 0 * * 0"
-    enabled: true
+    enabled: false  # migrated: book-restaurant-scraping cron owns this feed
     rate_limit: 4.0
     scraper_module: "restaurants.wongnai_scraper"
     scraper_class: "WongnaiScraper"
