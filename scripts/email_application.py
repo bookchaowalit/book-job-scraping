@@ -17,6 +17,13 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from job_target_policy import (
+    is_approved_for_submission,
+    is_qualified_for_preparation,
+    qualify_job,
+)
+from safety import assert_no_network_send_without_flag
+
 try:
     import httpx
 except ImportError:
@@ -57,14 +64,10 @@ def get_job_details(url: str) -> dict:
             reader = csv.DictReader(f)
             for row in reader:
                 if row.get("url") == url:
-                    return {
-                        "title": row.get("title", ""),
-                        "company": row.get("company", ""),
-                        "location": row.get("location", ""),
-                        "salary": row.get("salary", ""),
-                        "url": url,
-                        "tags": row.get("tags", ""),
-                    }
+                    details = dict(row)
+                    details.update(qualify_job(details))
+                    details["url"] = url
+                    return details
     
     return None
 
@@ -264,6 +267,13 @@ def send_batch_emails(jobs: list, min_score: int = 70, dry_run: bool = True) -> 
     results = {"sent": 0, "drafted": 0, "failed": 0, "skipped": 0}
 
     for job in jobs:
+        if not is_qualified_for_preparation(job):
+            results["skipped"] += 1
+            continue
+        if not dry_run and not is_approved_for_submission(job):
+            print(f"  BLOCKED: {job.get('title', '')[:50]} has no explicit application approval")
+            results["skipped"] += 1
+            continue
         score = int(job.get("_score", job.get("score", 0)) or 0)
         if score < min_score:
             results["skipped"] += 1
@@ -303,6 +313,10 @@ def main():
     parser.add_argument("--min-score", type=int, default=70, help="Minimum score for batch mode")
     parser.add_argument("--no-dry-run", action="store_true", help="Actually send emails (batch mode)")
     args = parser.parse_args()
+
+    live_send = bool((args.send and args.to) or (args.batch and args.no_dry_run))
+    if live_send:
+        assert_no_network_send_without_flag(want_send=True, action="email_application send")
     
     print(f"\n{'='*80}")
     print(f"  EMAIL APPLICATION SENDER")
@@ -346,6 +360,10 @@ def main():
     if not job:
         print(f"ERROR: Job not found for URL: {args.url}")
         return
+
+    if args.send and args.to and not is_approved_for_submission(job):
+        print("BLOCKED: job requires qualification_status=PASS and application_readiness=APPROVED")
+        raise SystemExit(2)
     
     title = job.get("title", "")
     company = job.get("company", "")

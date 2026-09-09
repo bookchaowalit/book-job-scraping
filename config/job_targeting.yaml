@@ -1,0 +1,82 @@
+# Contract-first discovery policy for a candidate who already has a full-time
+# role in Thailand. This file controls discovery qualification only; it never
+# authorizes an application submission.
+policy_version: thailand-career-v3
+
+# Career-change lanes are separate from concurrent contract work. Discovery
+# never grants permission to resign, relocate, or submit an application.
+career_lanes:
+  enabled: true
+  lanes: [remote_career, relocation]
+  verification_max_age_days: 7
+
+target:
+  accepted_employment_types:
+    - Contract
+    - Freelance
+    - Fractional
+    - Part-time
+    - Fixed-term
+    - Project-based
+    - Retainer
+  thai_full_time: REJECT
+  foreign_full_time: VERIFY
+  unknown_employment_type: VERIFY
+  require_remote_or_marketplace: true
+  require_thailand_eligibility_for_pass: true
+
+# A separate lane for opportunities that can create a portfolio, mentor
+# reference, or possible hiring path.  These are never treated as ordinary
+# contracts: unpaid work stays review-only, and paid programs need explicit
+# scope, compensation, and conversion/reference evidence before PASS.
+bridge_opportunities:
+  employment_types:
+    - Contract-to-hire
+    - Paid trial
+    - Apprenticeship
+    - Fellowship
+    - Internship
+    - Volunteer
+  unpaid_review_only:
+    - Internship
+    - Volunteer
+  require_scope_duration_and_mentor: true
+  require_conversion_or_reference_path: true
+  reject_upfront_fee_or_income_share: true
+
+freelance_sources:
+  - upwork
+  - fastwork
+  - fiverr
+  - toptal
+  - peopleperhour
+  - contra
+  - freelancermap
+  - a.team
+
+thai_local_sources:
+  - jobthai
+  - jobbkk
+  - jobsdb-th
+
+application_safety:
+  default_readiness: REVIEW_REQUIRED
+  approved_value: APPROVED
+  auto_prepare_statuses:
+    - PASS
+  auto_submit: false
+  # A live submission also needs the repository's separate CLI + environment
+  # unlock gates. Qualification alone is never permission to submit.
+  require_explicit_application_approval: true
+
+human_verification_fields:
+  - verified_employment_type
+  - verified_work_arrangement
+  - verified_thailand_eligibility
+  - verified_concurrent_employment
+  - verified_engagement_boundary
+  - verified_bridge_compensation
+  - verified_scope_duration
+  - verified_mentor
+  - verified_conversion_path
+  - verification_notes

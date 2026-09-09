@@ -37,7 +37,7 @@ def run_command(cmd, description):
     
     result = subprocess.run(
         cmd,
-        shell=True,
+        shell=False,
         cwd=PROJECT_ROOT,
         capture_output=False,
         text=True
@@ -148,34 +148,34 @@ def main():
     # Analysis-only mode
     if args.analysis:
         run_command(
-            f"python3 {SCRIPTS_DIR}/skills_gap_analyzer.py --top 10",
+            [sys.executable, str(SCRIPTS_DIR / "skills_gap_analyzer.py"), "--top", "10"],
             "🔍 Running Skills Gap Analyzer"
         )
         run_command(
-            f"python3 {SCRIPTS_DIR}/salary_benchmark.py",
+            [sys.executable, str(SCRIPTS_DIR / "salary_benchmark.py")],
             "💰 Running Salary Benchmark"
         )
         run_command(
-            f"python3 {SCRIPTS_DIR}/followup_tracker.py --days 7",
+            [sys.executable, str(SCRIPTS_DIR / "followup_tracker.py"), "--days", "7"],
             "📬 Checking Application Follow-ups"
         )
         return
     
     # Step 1: Remote job postings (6 sources)
     success1 = run_command(
-        f"python3 {SCRIPTS_DIR}/scrape_job_postings.py --boards 'remoteok-api,himalayas,landing-jobs,jobicy,hn-hiring,remotive'",
+        [sys.executable, str(SCRIPTS_DIR / "scrape_job_postings.py"), "--boards", "remoteok-api,himalayas,landing-jobs,jobicy,hn-hiring,remotive"],
         "📡 Scraping Remote Job Postings (6 sources)"
     )
     
     # Step 2: Freelance jobs (3 platforms)
     success2 = run_command(
-        f"python3 {SCRIPTS_DIR}/scrape_freelance_jobs.py --platform both",
+        [sys.executable, str(SCRIPTS_DIR / "scrape_freelance_jobs.py"), "--platform", "both"],
         "💼 Scraping Freelance Platforms (Upwork + Fastwork)"
     )
     
     # Step 3: Job matching
     success3 = run_command(
-        f"python3 {SCRIPTS_DIR}/filter_job_matches.py",
+        [sys.executable, str(SCRIPTS_DIR / "filter_job_matches.py")],
         "🎯 Running Job Matcher"
     )
     
@@ -186,14 +186,14 @@ def main():
     # Step 4: Scrape job descriptions for top matches
     if args.scrape_desc:
         run_command(
-            f"python3 {SCRIPTS_DIR}/scrape_job_descriptions.py --top 5",
+            [sys.executable, str(SCRIPTS_DIR / "scrape_job_descriptions.py"), "--top", "5"],
             "📄 Scraping Job Descriptions (top 5)"
         )
     
     # Step 5: Follow-up check
     if args.followup:
         run_command(
-            f"python3 {SCRIPTS_DIR}/followup_tracker.py --days 7",
+            [sys.executable, str(SCRIPTS_DIR / "followup_tracker.py"), "--days", "7"],
             "📬 Checking Application Follow-ups"
         )
     

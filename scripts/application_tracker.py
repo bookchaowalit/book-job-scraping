@@ -15,6 +15,7 @@ import csv
 import json
 import os
 import sys
+import subprocess
 from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
@@ -33,6 +34,15 @@ TRACKER_CSV = DATA_DIR / "apply_tracker.csv"
 MATCHED_CSV = DATA_DIR / "matched_jobs.csv"
 
 STATUS_OPTIONS = ["notified", "applied", "interviewing", "offer", "rejected", "withdrawn"]
+
+def open_tracker_browser(url):
+    """Pass the URL as one argument without invoking a shell."""
+    try:
+        subprocess.run(["xdg-open", url], shell=False,
+                       stderr=subprocess.DEVNULL, timeout=30, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        print("Browser could not be opened; use the printed tracker URL.")
+
 STATUS_COLORS = {
     "notified": "#3b82f6",
     "applied": "#f59e0b",
@@ -632,7 +642,7 @@ def main():
 
     if not args.no_browser:
         import threading
-        threading.Timer(1.0, lambda: os.system(f"xdg-open '{url}' 2>/dev/null &")).start()
+        threading.Timer(1.0, open_tracker_browser, args=(url,)).start()
 
     try:
         server.serve_forever()

@@ -50,6 +50,26 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 
 sys.path.insert(0, str(SCRIPTS_DIR))
 
+from job_target_policy import (  # noqa: E402
+    HUMAN_VERIFICATION_FIELDS,
+    SOURCE_EVIDENCE_FIELDS,
+    is_qualified_for_preparation,
+)
+
+POLICY_FIELDS = [
+    "qualification_status",
+    "policy_version",
+    "employment_type",
+    "work_arrangement",
+    "thailand_eligibility",
+    "concurrent_employment",
+    "engagement_boundary",
+    "application_readiness",
+    "qualification_reasons",
+    *HUMAN_VERIFICATION_FIELDS,
+    *SOURCE_EVIDENCE_FIELDS,
+]
+
 # Import previous employers blocklist
 try:
     from send_application_emails import PREVIOUS_EMPLOYERS
@@ -98,6 +118,8 @@ def get_candidate_jobs(min_score: int = 80) -> list:
 
     candidates = []
     for job in matched:
+        if not is_qualified_for_preparation(job):
+            continue
         url = job.get("url", "").lower()
         try:
             score = int(job.get("_score", job.get("score", 0)))
@@ -124,6 +146,7 @@ def get_candidate_jobs(min_score: int = 80) -> list:
             "tags": job.get("tags", job.get("_matched", "")),
             "source": job.get("source", ""),
             "posted": job.get("posted", ""),
+            **{field: job.get(field, "") for field in POLICY_FIELDS},
         })
 
     candidates.sort(key=lambda x: x["score"], reverse=True)
@@ -293,23 +316,36 @@ def log_auto_apply(job: dict, draft_path: Path, resume_path: Path):
         json.dump(log, f, indent=2)
 
 
-def log_apply_status(url: str, status: str, note: str = ""):
-    """Update apply_tracker.csv with application status."""
-    fieldnames = ["url", "status", "note", "updated_at"]
+def log_apply_status(url: str, status: str, note: str = "", job: dict | None = None):
+    """Update the tracker without dropping qualification evidence."""
+    required_fields = ["url", "title", "company", "status", "note", "updated_at", *POLICY_FIELDS]
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     entries = []
     found = False
+    existing_fields = []
     if APPLY_TRACKER.exists():
         with open(APPLY_TRACKER, "r") as f:
-            for row in csv.DictReader(f):
+            reader = csv.DictReader(f)
+            existing_fields = list(reader.fieldnames or [])
+            for row in reader:
                 if row.get("url") == url:
                     row["status"] = status
                     row["note"] = note
                     row["updated_at"] = now
+                    if job:
+                        for field in required_fields:
+                            if job.get(field) not in (None, ""):
+                                row[field] = job[field]
                     found = True
                 entries.append(row)
     if not found:
-        entries.append({"url": url, "status": status, "note": note, "updated_at": now})
+        entry = {"url": url, "status": status, "note": note, "updated_at": now}
+        if job:
+            for field in required_fields:
+                if job.get(field) not in (None, ""):
+                    entry[field] = job[field]
+        entries.append(entry)
+    fieldnames = list(dict.fromkeys(existing_fields + required_fields))
     with open(APPLY_TRACKER, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
@@ -417,6 +453,7 @@ def main():
             job["url"],
             STATUS_PREPARED,
             f"score={job['score']}, draft={draft_path.name}",
+            job=job,
         )
 
         job["draft_file"] = str(draft_path)

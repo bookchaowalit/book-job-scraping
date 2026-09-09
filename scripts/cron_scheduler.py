@@ -29,6 +29,7 @@ import argparse
 import json
 import os
 import subprocess
+import shlex
 import sys
 import time
 from datetime import datetime
@@ -52,49 +53,49 @@ def get_daily_commands():
         {
             "name": "pipeline_full",
             "label": "Full Pipeline Run",
-            "cmd": f"cd {ROOT} && {PYTHON} {SCRIPTS_DIR / 'pipeline_runner.py'} --full --send-telegram",
+            "cmd": [PYTHON, str(SCRIPTS_DIR / "pipeline_runner.py"), "--full"],
             "schedule": "0 6 * * *",  # 6:00 AM daily
         },
         {
             "name": "followup",
             "label": "Follow-up Tracker",
-            "cmd": f"cd {ROOT} && {PYTHON} {SCRIPTS_DIR / 'followup_tracker.py'} --days 5 --send-telegram --generate-emails",
+            "cmd": [PYTHON, str(SCRIPTS_DIR / "followup_tracker.py"), "--days", "5", "--send-telegram", "--generate-emails"],
             "schedule": "30 6 * * *",  # 6:30 AM daily
         },
         {
             "name": "portfolio_sync",
             "label": "Portfolio Sync",
-            "cmd": f"cd {ROOT} && {PYTHON} {SCRIPTS_DIR / 'portfolio_sync.py'} --send-telegram",
+            "cmd": [PYTHON, str(SCRIPTS_DIR / "portfolio_sync.py"), "--send-telegram"],
             "schedule": "0 7 * * *",  # 7:00 AM daily
         },
         {
             "name": "daily_digest",
             "label": "Daily Digest",
-            "cmd": f"cd {ROOT} && {PYTHON} {SCRIPTS_DIR / 'daily_digest.py'} --send-telegram",
+            "cmd": [PYTHON, str(SCRIPTS_DIR / "daily_digest.py"), "--send-telegram"],
             "schedule": "0 8 * * *",  # 8:00 AM daily
         },
         {
             "name": "daily_job_digest",
             "label": "Daily Job Digest",
-            "cmd": f"cd {ROOT} && {PYTHON} {SCRIPTS_DIR / 'daily_job_digest.py'} --send-telegram",
+            "cmd": [PYTHON, str(SCRIPTS_DIR / "daily_job_digest.py"), "--send-telegram"],
             "schedule": "30 8 * * *",  # 8:30 AM daily
         },
         {
             "name": "scam_scan",
             "label": "Job Scam Scan",
-            "cmd": f"cd {ROOT} && {PYTHON} {SCRIPTS_DIR / 'job_scam_detector.py'} --top 20 --send-telegram",
+            "cmd": [PYTHON, str(SCRIPTS_DIR / "job_scam_detector.py"), "--top", "20", "--send-telegram"],
             "schedule": "0 9 * * *",  # 9:00 AM daily
         },
         {
             "name": "auto_seed",
             "label": "Auto-Seed Application Tracker",
-            "cmd": f"cd {ROOT} && {PYTHON} {SCRIPTS_DIR / 'auto_seed_tracker.py'} --min-score 8 --send-telegram",
+            "cmd": [PYTHON, str(SCRIPTS_DIR / "auto_seed_tracker.py"), "--min-score", "5", "--send-telegram"],
             "schedule": "30 9 * * *",  # 9:30 AM daily
         },
         {
             "name": "pipeline_health",
             "label": "Pipeline Health Monitor",
-            "cmd": f"cd {ROOT} && {PYTHON} {SCRIPTS_DIR / 'pipeline_health_monitor.py'} --send-telegram",
+            "cmd": [PYTHON, str(SCRIPTS_DIR / "pipeline_health_monitor.py"), "--send-telegram"],
             "schedule": "0 10 * * *",  # 10:00 AM daily
         },
     ]
@@ -106,43 +107,43 @@ def get_weekly_commands():
         {
             "name": "deep_scrape",
             "label": "Deep JD Scrape",
-            "cmd": f"cd {ROOT} && {PYTHON} {SCRIPTS_DIR / 'deep_scrape_jd.py'} --top 20 --send-telegram",
+            "cmd": [PYTHON, str(SCRIPTS_DIR / "deep_scrape_jd.py"), "--top", "20", "--send-telegram"],
             "schedule": "0 20 * * 0",  # Sunday 8:00 PM
         },
         {
             "name": "company_intel",
             "label": "Company Intelligence",
-            "cmd": f"cd {ROOT} && {PYTHON} {SCRIPTS_DIR / 'company_intel.py'} --top 15 --send-telegram",
+            "cmd": [PYTHON, str(SCRIPTS_DIR / "company_intel.py"), "--top", "15", "--send-telegram"],
             "schedule": "30 20 * * 0",  # Sunday 8:30 PM
         },
         {
             "name": "freelance_proposal",
             "label": "Freelance Proposals",
-            "cmd": f"cd {ROOT} && {PYTHON} {SCRIPTS_DIR / 'freelance_proposal.py'} --top 5 --send-telegram",
+            "cmd": [PYTHON, str(SCRIPTS_DIR / "freelance_proposal.py"), "--top", "5", "--send-telegram"],
             "schedule": "0 21 * * 0",  # Sunday 9:00 PM
         },
         {
             "name": "weekly_report",
             "label": "Weekly Report",
-            "cmd": f"cd {ROOT} && {PYTHON} {SCRIPTS_DIR / 'weekly_report.py'} --send-telegram",
+            "cmd": [PYTHON, str(SCRIPTS_DIR / "weekly_report.py"), "--send-telegram"],
             "schedule": "30 21 * * 0",  # Sunday 9:30 PM
         },
         {
             "name": "auto_blog",
             "label": "Auto Blog Generator",
-            "cmd": f"cd {ROOT} && {PYTHON} {SCRIPTS_DIR / 'auto_blog.py'} --send-telegram",
+            "cmd": [PYTHON, str(SCRIPTS_DIR / "auto_blog.py"), "--send-telegram"],
             "schedule": "0 22 * * 0",  # Sunday 10:00 PM
         },
         {
             "name": "rss_aggregate",
             "label": "RSS Feed Aggregation",
-            "cmd": f"cd {ROOT} && {PYTHON} {SCRIPTS_DIR / 'rss_aggregator.py'} --send-telegram",
+            "cmd": [PYTHON, str(SCRIPTS_DIR / "rss_aggregator.py"), "--send-telegram"],
             "schedule": "30 22 * * 0",  # Sunday 10:30 PM
         },
         {
             "name": "linkedin_optimizer",
             "label": "LinkedIn Profile Optimizer",
-            "cmd": f"cd {ROOT} && {PYTHON} {SCRIPTS_DIR / 'linkedin_profile_optimizer.py'} --send-telegram",
+            "cmd": [PYTHON, str(SCRIPTS_DIR / "linkedin_profile_optimizer.py"), "--send-telegram"],
             "schedule": "0 23 * * 0",  # Sunday 11:00 PM
         },
     ]
@@ -163,7 +164,8 @@ def run_task(task, dry_run=False):
     try:
         result = subprocess.run(
             task["cmd"],
-            shell=True,
+            shell=False,
+            cwd=ROOT,
             capture_output=True,
             text=True,
             timeout=600,
@@ -251,7 +253,8 @@ def install_crontab():
 
     # Add new entries
     for task in all_tasks:
-        cron_line = f"{task['schedule']} {task['cmd']} >> {DATA_DIR / 'cron.log'} 2>&1 {CRON_MARKER}"
+        command = f"cd {shlex.quote(str(ROOT))} && {shlex.join(task['cmd'])}"
+        cron_line = f"{task['schedule']} {command} >> {shlex.quote(str(DATA_DIR / 'cron.log'))} 2>&1 {CRON_MARKER}"
         lines.append(cron_line)
 
     new_crontab = "\n".join(lines) + "\n"

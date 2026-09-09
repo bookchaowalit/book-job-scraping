@@ -25,6 +25,15 @@ sys.path.insert(0, str(SCRIPT_DIR))
 # Import scraper and matcher
 from scrape_job_postings import main as scrape_main
 from match_jobs import score_job, is_relevant_title, is_preferred_location, RELOCATION_KEYWORDS, parse_salary_value
+from job_target_policy import (
+    HUMAN_VERIFICATION_FIELDS,
+    SOURCE_EVIDENCE_FIELDS,
+    PASS,
+    REJECT,
+    VERIFY,
+    qualify_job,
+)
+from job_role_relevance import is_relevant_role
 
 # Telegram config
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
@@ -74,30 +83,48 @@ def send_telegram(message: str, inline_buttons: list = None):
         return False
 
 
-def log_apply_status(url: str, status: str, note: str = ""):
+def log_apply_status(url: str, status: str, note: str = "", job: dict | None = None):
     """Log apply status to tracker CSV (update-in-place to avoid duplicates)."""
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    fieldnames = ["url", "status", "note", "updated_at"]
+    required_fields = [
+        "url", "title", "company", "status", "note", "updated_at",
+        "qualification_status", "policy_version", "employment_type",
+        "work_arrangement", "thailand_eligibility", "concurrent_employment",
+        "engagement_boundary", "application_readiness", "qualification_reasons",
+        *HUMAN_VERIFICATION_FIELDS,
+        *SOURCE_EVIDENCE_FIELDS,
+    ]
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     # Load existing entries
     entries = []
     found = False
+    existing_fields = []
     if APPLY_LOG.exists():
         with open(APPLY_LOG, "r") as f:
             reader = csv.DictReader(f)
+            existing_fields = list(reader.fieldnames or [])
             for row in reader:
                 if row.get("url") == url:
                     row["status"] = status
                     row["note"] = note
                     row["updated_at"] = now
+                    if job:
+                        for field in required_fields:
+                            if field in job and job.get(field) not in (None, ""):
+                                row[field] = job[field]
                     found = True
                 entries.append(row)
 
     if not found:
-        entries.append({"url": url, "status": status, "note": note, "updated_at": now})
+        entry = {"url": url, "status": status, "note": note, "updated_at": now}
+        if job:
+            for field in required_fields:
+                if field in job and job.get(field) not in (None, ""):
+                    entry[field] = job[field]
+        entries.append(entry)
 
-    # Write back (deduplicated, filtered to fieldnames only)
+    fieldnames = list(dict.fromkeys(existing_fields + required_fields))
     with open(APPLY_LOG, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
@@ -227,7 +254,12 @@ def format_job_message(jobs: list, total_scraped: int, total_matched: int) -> tu
         salary = job.get("salary", "")
         url = job.get("url", "")
         
-        lines.append(f"<b>{i}. {stars} (score: {score}){reloc}{ai_fit_str}</b>")
+        qualification = job.get("qualification_status", VERIFY)
+        employment_type = job.get("employment_type", "Unknown")
+        lines.append(
+            f"<b>{i}. {stars} (score: {score}) "
+            f"[{qualification}/{employment_type}]{reloc}{ai_fit_str}</b>"
+        )
         lines.append(f"  {title}")
         if company:
             lines.append(f"  🏢 {company}")
@@ -274,8 +306,8 @@ def main():
         print("[1/3] Running full scrape...")
         try:
             scrape_main(
-                boards="remoteok-api,himalayas,landing-jobs,jobicy,indeed,seek-au,seek-nz,jobthai,jobsdb-th,jobbkk,hn-hiring,remotive,upwork,fastwork,fiverr,toptal,arc,workingnomads,turing,themuse",
-                keywords="python,react,next.js,typescript,full-stack,developer,AI engineer,backend,frontend,node.js,FastAPI,Django"
+                boards="remoteok-api,himalayas,landing-jobs,jobicy,hn-hiring,remotive,upwork,fastwork,peopleperhour,toptal,arc,workingnomads,turing,themuse",
+                keywords="python contract,next.js contract,react freelance,AI automation contract,part-time full-stack,fractional engineer"
             )
         except Exception as e:
             print(f"✗ Scrape failed: {e}")
@@ -300,15 +332,20 @@ def main():
     
     # Score and filter
     scored_jobs = []
+    qualification_counts = {PASS: 0, VERIFY: 0, REJECT: 0}
     for job in jobs:
+        qualification = qualify_job(job)
+        qualification_counts[qualification["qualification_status"]] += 1
+        if qualification["qualification_status"] == REJECT:
+            continue
+        job.update(qualification)
         score, matched, relocation = score_job(job)
         if score < args.min_score:
             continue
-        if not is_relevant_title(job.get("title", "")):
-            continue
-        if not is_preferred_location(job.get("location", "")):
+        if not is_relevant_role(job):
             continue
         job["_score"] = score
+        job["score"] = score
         job["_matched"] = ", ".join(matched)
         job["_relocation"] = "YES" if relocation else ""
         scored_jobs.append(job)
@@ -317,7 +354,13 @@ def main():
     board_quality = load_board_quality()
     for job in scored_jobs:
         job["_priority"] = compute_priority_score(job, board_quality)
-    scored_jobs.sort(key=lambda x: x["_priority"], reverse=True)
+    status_order = {PASS: 0, VERIFY: 1}
+    scored_jobs.sort(
+        key=lambda job: (
+            status_order.get(job.get("qualification_status", VERIFY), 9),
+            -job["_priority"],
+        )
+    )
     total_matched = len(scored_jobs)
 
     # AI matching (optional)
@@ -342,11 +385,23 @@ def main():
             ai_fit = job.get("_ai_fit", 0)
             if ai_fit > 0:
                 job["_score"] = job["_score"] + (ai_fit // 10)
-        scored_jobs.sort(key=lambda x: x["_score"], reverse=True)
+                job["score"] = job["_score"]
+        scored_jobs.sort(
+            key=lambda job: (
+                status_order.get(job.get("qualification_status", VERIFY), 9),
+                -job["_score"],
+            )
+        )
     
     top_jobs = scored_jobs[:args.top]
 
     print(f"  Matched: {total_matched} jobs (score >= {args.min_score})")
+    print(
+        "  Qualification: "
+        f"PASS={qualification_counts[PASS]} | "
+        f"VERIFY={qualification_counts[VERIFY]} | "
+        f"REJECT={qualification_counts[REJECT]}"
+    )
     print(f"  Top {len(top_jobs)} jobs selected (by priority score)")
     
     # Step 3: Notify
@@ -362,7 +417,7 @@ def main():
         for job in top_jobs:
             url = job.get("url", "")
             if url:
-                log_apply_status(url, "notified", f"score={job['_score']}")
+                log_apply_status(url, "notified", f"score={job['_score']}", job=job)
         print(f"\n✓ Done! Sent {len(top_jobs)} jobs to Telegram with inline buttons")
         print(f"  Apply tracker: {APPLY_LOG}")
 
@@ -375,8 +430,15 @@ def main():
 
 def _persist_matched_jobs(scored_jobs: list, has_ai: bool = False):
     """Persist scored jobs to matched_jobs.csv for callback handler reference."""
-    fieldnames = ["title", "company", "location", "salary", "url", "source",
-                  "keyword", "posted", "_score", "_priority", "_matched", "_relocation"]
+    fieldnames = [
+        "score", "_score", "_priority", "qualification_status", "policy_version",
+        "employment_type", "work_arrangement", "thailand_eligibility",
+        "concurrent_employment", "engagement_boundary", "application_readiness",
+        "qualification_reasons", *HUMAN_VERIFICATION_FIELDS,
+        "title", "company", "location", "salary",
+        "url", "source", "keyword", "posted", "tags", "scraped_at",
+        "_matched", "_relocation",
+    ]
     if has_ai:
         fieldnames.extend(["_ai_fit", "_ai_missing", "_ai_notes"])
     with open(MATCHED_CSV, "w", newline="") as f:

@@ -1,7 +1,13 @@
 # book-job-scraping — Safety & P0 Status
 
 **Status:** collection scheduler active; **not production-ready** for live applications.
-**Last updated:** 2026-08-24
+**Last updated:** 2026-08-31
+
+**Career workflow update (2026-09-07):** See [CAREER-WORKFLOW.md](CAREER-WORKFLOW.md).
+The onsite/Thailand/concurrent-employment exclusions below apply to the
+`remote_contract` lane. Career changes have separate source-backed eligibility
+and transition checks. New packets support reviewed manual ATS submission and
+receipt metadata handoff; they do not certify or unlock the legacy senders.
 
 ## Correct operating statement
 
@@ -23,14 +29,30 @@
 5. **Status semantics** — draft generators write `prepared` (legacy `auto_applied` is treated as prepared on read). `submitted` is for real sends only.
 6. **Scheduler safety** — cron uses the repository `.venv`, prevents overlap
    with `flock`, and runs `pipeline_health_monitor.py` after collection.
+7. **Contract-first qualification** — `config/job_targeting.yaml` classifies
+   every match as `PASS`, `VERIFY`, or `REJECT`. Thai full-time, geo-ineligible,
+   onsite/hybrid, exclusivity, and explicit Thai employee/social-security
+   listings cannot reach promotion or preparation.
+8. **Submission approval** — live email/ATS paths additionally require
+   `qualification_status=PASS` and `application_readiness=APPROVED`. The
+   existing CLI + two environment unlock gates still apply after that check.
+9. **Bridge-to-hire safety** — volunteer/internship signals remain
+   `VERIFY`/review-only; paid bridge programs require human evidence for
+   compensation, bounded scope/duration, mentor, and conversion/reference path.
+   Upfront-fee, income-share-entry, and indefinite unpaid production signals
+   are rejected.
 
 ## Do not do (until explicitly ordered)
 
 - Do not run `send_application_emails.py --send`
+- Do not run `email_application.py --send` or batch `--no-dry-run`
 - Do not run `auto_send_email.py --send`
 - Do not run `send_followup_emails.py --send`
 - Do not run `ats_auto_apply.py --apply`
 - Do not enable live send/apply or set the unlock env vars casually.
+- Do not mark `application_readiness=APPROVED` until contract, current-employer
+  conflict, hours/timezone, IP/confidentiality, tax, and payroll/EOR terms have
+  been reviewed.
 - `setup_cron.sh` is collection-only; use `setup_cron.sh remove` to pause this
   repository's scheduler.
 
@@ -50,6 +72,7 @@ pip install -r requirements.txt
 .venv/bin/python scripts/auto_apply.py --dry-run
 .venv/bin/python scripts/ats_auto_apply.py --test
 .venv/bin/python -m unittest tests/test_paths_and_safety.py -v
+.venv/bin/python -m unittest tests/test_job_target_policy.py -v
 ```
 
 ## Current verification
@@ -67,6 +90,8 @@ Runtime data lives in `./data/` (gitignored except `.gitkeep`).
 | Tracker | Role |
 |---|---|
 | `data/apply_tracker.csv` | Legacy nested pipeline tracker |
-| Solo Empire `docs/opportunities/JOB-TRACKER.md` | Canonical submitted-applications record |
+| Solo Empire `opportunities/applications/JOB-TRACKER.md` | Canonical submitted-applications record |
 
-Bridge or retire the legacy tracker before relying on automation for inventory.
+Use `application_review.py` and the parent's `import_job_applications.py` for
+the confirmed-receipt handoff. The legacy tracker is not automatically migrated;
+old `applied`/`sent` labels alone are not confirmed submission evidence.

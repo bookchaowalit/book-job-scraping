@@ -37,6 +37,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 from repo_paths import DATA_DIR, load_env
 from safety import STATUS_SUBMITTED, assert_no_network_send_without_flag, is_live_send_unlocked
+from job_target_policy import is_approved_for_submission
 
 load_env()
 
@@ -457,6 +458,8 @@ def get_jobs_with_emails(filters: dict = None) -> list:
         title = row.get('title', '').strip()
         
         if not company or not title or row.get('status') not in ('discovered', 'notified', 'new'):
+            continue
+        if not is_approved_for_submission(row):
             continue
         
         # Apply filters

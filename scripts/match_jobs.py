@@ -16,6 +16,9 @@ import re
 import sys
 from pathlib import Path
 
+from job_target_policy import HUMAN_VERIFICATION_FIELDS, PASS, REJECT, VERIFY, qualify_job
+from job_role_relevance import contains_term, evidence_tags, is_relevant_role
+
 try:
     from dotenv import load_dotenv
     _root = Path(__file__).resolve().parents[1]
@@ -53,7 +56,7 @@ SKILLS = {
 PREFERRED_LOCATIONS = [
     "remote", "australia", "au", "nz", "new zealand", "usa", "united states",
     "japan", "tokyo", "singapore", "europe", "uk", "germany", "canada",
-    "thailand", "bangkok",
+    "thailand", "bangkok", "worldwide", "anywhere", "apac", "asia", "global",
 ]
 
 # ── Relocation / Visa sponsorship signals ─────────────────────────────────────
@@ -67,7 +70,7 @@ RELOCATION_KEYWORDS = [
 RELOCATION_BONUS = 5  # extra points for jobs mentioning relocation/visa
 
 # ── Freelance platform bonus ──────────────────────────────────────────────────
-FREELANCE_PLATFORMS = ["upwork", "fastwork", "fiverr", "toptal"]
+FREELANCE_PLATFORMS = ["upwork", "fastwork", "fiverr", "toptal", "peopleperhour", "contra", "freelancermap"]
 FREELANCE_BONUS = 3  # extra points for freelance gigs (freelance-first revenue)
 
 # Job title keywords that match your profile
@@ -115,21 +118,21 @@ def parse_salary_value(salary_str: str) -> int:
 
 def score_job(job: dict, description: str = "") -> tuple:
     """Score a job based on multiple factors. Returns (score, matched_skills, relocation)."""
-    text = f"{job.get('title', '')} {job.get('tags', '')} {job.get('keyword', '')} {job.get('location', '')} {description}".lower()
+    text = f"{job.get('title', '')} {evidence_tags(job)} {description}".lower()
     title = job.get('title', '').lower()
     score = 0
     matched = []
     
     # 1. Skill matching (base score)
     for skill, weight in SKILLS.items():
-        if skill in text:
+        if contains_term(text, skill):
             score += weight
             matched.append(skill)
     
     # 2. Title keyword bonus (exact title matches are more relevant)
     title_bonus = 0
     for kw in TITLE_KEYWORDS:
-        if kw in title:
+        if contains_term(title, kw):
             title_bonus += 2
     score += title_bonus
     
@@ -162,7 +165,7 @@ def score_job(job: dict, description: str = "") -> tuple:
     
     # 6. Freelance platform bonus (freelance-first revenue strategy)
     source = job.get('source', '').lower()
-    tags = job.get('tags', '').lower()
+    tags = evidence_tags(job).lower()
     if any(platform in source.lower() for platform in FREELANCE_PLATFORMS) or 'freelance' in tags:
         score += FREELANCE_BONUS
     
@@ -267,8 +270,7 @@ Return ONLY valid JSON."""
 
 def is_relevant_title(title: str) -> bool:
     """Check if job title matches your profile."""
-    title_lower = title.lower()
-    return any(kw in title_lower for kw in TITLE_KEYWORDS)
+    return is_relevant_role({"title": title})
 
 
 def is_preferred_location(location: str) -> bool:
@@ -288,7 +290,17 @@ def main():
     parser.add_argument("--ai-limit", type=int, default=5, help="Limit AI analysis to top N jobs")
     parser.add_argument("--title-filter", action="store_true", default=True,
                         help="Filter by relevant job titles")
+    parser.add_argument(
+        "--include-statuses",
+        default=f"{PASS},{VERIFY}",
+        help="Qualification statuses to keep (default: PASS,VERIFY)",
+    )
     args = parser.parse_args()
+
+    included_statuses = {item.strip().upper() for item in args.include_statuses.split(",") if item.strip()}
+    invalid_statuses = included_statuses - {PASS, VERIFY, REJECT}
+    if invalid_statuses:
+        parser.error(f"unsupported qualification statuses: {sorted(invalid_statuses)}")
 
     if not INPUT_CSV.exists():
         print(f"ERROR: {INPUT_CSV} not found. Run scrape_job_postings.py first.")
@@ -319,15 +331,19 @@ def main():
 
     # Score and filter
     scored_jobs = []
+    qualification_counts = {PASS: 0, VERIFY: 0, REJECT: 0}
     for job in jobs:
         url = job.get("url", "")
         desc_text = descriptions.get(url, "")
+        qualification = qualify_job(job, description=desc_text)
+        qualification_counts[qualification["qualification_status"]] += 1
+        if qualification["qualification_status"] not in included_statuses:
+            continue
+        job.update(qualification)
         score, matched, relocation = score_job(job, description=desc_text)
         if score < args.min_score:
             continue
-        if args.title_filter and not is_relevant_title(job.get("title", "")):
-            continue
-        if not is_preferred_location(job.get("location", "")):
+        if args.title_filter and not is_relevant_role(job):
             continue
         # Location filter
         if args.location:
@@ -341,12 +357,19 @@ def main():
             if sal_val > 0 and sal_val < args.min_salary:
                 continue
         job["_score"] = score
+        job["score"] = score
         job["_matched"] = ", ".join(matched)
         job["_relocation"] = "YES" if relocation else ""
         scored_jobs.append(job)
 
-    # Sort by score descending
-    scored_jobs.sort(key=lambda x: x["_score"], reverse=True)
+    # PASS always ranks ahead of VERIFY; skill score orders within each group.
+    status_order = {PASS: 0, VERIFY: 1, REJECT: 2}
+    scored_jobs.sort(
+        key=lambda job: (
+            status_order.get(job.get("qualification_status", VERIFY), 9),
+            -job["_score"],
+        )
+    )
 
     # Filter by source if specified
     if args.source:
@@ -374,14 +397,28 @@ def main():
             ai_fit = job.get("_ai_fit", 0)
             if ai_fit > 0:
                 job["_score"] = job["_score"] + (ai_fit // 10)  # AI fit adds up to +10 points
+                job["score"] = job["_score"]
+        scored_jobs.sort(
+            key=lambda job: (
+                status_order.get(job.get("qualification_status", VERIFY), 9),
+                -job["_score"],
+            )
+        )
 
     # Take top N
     top_jobs = scored_jobs[:args.top]
 
     # Save to CSV
     if top_jobs:
-        fieldnames = ["title", "company", "location", "salary", "url", "source",
-                      "keyword", "posted", "_score", "_matched", "_relocation"]
+        fieldnames = [
+            "score", "_score", "qualification_status", "policy_version",
+            "employment_type", "work_arrangement", "thailand_eligibility",
+            "concurrent_employment", "engagement_boundary", "application_readiness",
+            "qualification_reasons", "search_lane", "visa_sponsorship", *HUMAN_VERIFICATION_FIELDS,
+            "title", "company", "location", "salary",
+            "url", "source", "keyword", "posted", "tags", "scraped_at",
+            "_matched", "_relocation",
+        ]
         # Add AI fields if AI matching was used
         if args.ai_match:
             fieldnames.extend(["_ai_fit", "_ai_missing", "_ai_notes"])
@@ -404,7 +441,11 @@ def main():
         ai_fit_str = ""
         if job.get("_ai_fit"):
             ai_fit_str = f" [AI: {job['_ai_fit']}%]"
-        print(f"\n  [{i:2d}] {stars} (score: {score}){reloc}{ai_fit_str}")
+        print(
+            f"\n  [{i:2d}] {stars} (score: {score}) "
+            f"[{job.get('qualification_status', VERIFY)} / {job.get('employment_type', 'Unknown')}]"
+            f"{reloc}{ai_fit_str}"
+        )
         print(f"      Title:    {job.get('title', '')[:60]}")
         print(f"      Company:  {job.get('company', '')[:40]}")
         print(f"      Location: {job.get('location', '')}")
@@ -432,6 +473,12 @@ def main():
         print(f"    {src:25s}: {count} jobs")
 
     print(f"\n  Total matched: {len(scored_jobs)} jobs (score >= {args.min_score})")
+    print(
+        "  Qualification: "
+        f"PASS={qualification_counts[PASS]} | "
+        f"VERIFY={qualification_counts[VERIFY]} | "
+        f"REJECT={qualification_counts[REJECT]}"
+    )
     print(f"  Showing top:   {len(top_jobs)} jobs")
     print(f"  Saved to:      {OUTPUT_CSV}")
     print(f"  Done.")

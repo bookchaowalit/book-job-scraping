@@ -21,7 +21,6 @@ import csv
 import json
 import math
 import os
-import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -37,39 +36,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BRIEFINGS_DIR = ROOT / "data" / "briefings"
 
 
-def _load_opportunity_client():
-    """Import shared opportunity.v1 client from Solo Empire monorepo utils."""
-    here = Path(__file__).resolve()
-    for parent in here.parents:
-        candidate = parent / "infra" / "scripts" / "utils" / "opportunity_client.py"
-        if candidate.is_file():
-            utils = str(candidate.parent)
-            if utils not in sys.path:
-                sys.path.insert(0, utils)
-            import opportunity_client  # type: ignore
-
-            return opportunity_client
-    raise ImportError(
-        "opportunity_client not found — expected solo-empire/infra/scripts/utils/"
-    )
-
-
-def load_opportunity_rows(*, history: bool = False, max_rows: int = 10000) -> list:
-    """Load opportunities via opportunity.v1 API/Gold — never local CSV projections."""
-    try:
-        client = _load_opportunity_client()
-        result = client.fetch_opportunities(
-            limit=min(max_rows, 500),
-            history=history,
-            use_gold_fallback=True,
-        )
-        return list(result.items)
-    except Exception:
-        return []
-
-
 # Reuse paths from scraper_dashboard
-# opportunities niche is Track A: opportunity.v1 only (no local CSV path).
 SCRAPER_PATHS = {
     "crypto": {
         "latest": ROOT / "data" / "exported" / "crypto_prices.csv",
@@ -123,13 +90,6 @@ SCRAPER_PATHS = {
         "latest": ROOT / "domains" / "book-travel" / "data" / "flight_prices.csv",
         "history": ROOT / "domains" / "book-travel" / "data" / "flight_prices_history.csv",
     },
-    "opportunities": {
-        "source_kind": "opportunity_v1_api",
-        "schema_version": "opportunity.v1",
-        "base_url": "http://127.0.0.1:8108",
-        "latest": None,  # never open opportunity CSV projections
-        "history": None,
-    },
     "property": {
         "latest": ROOT / "domains" / "book-real-estate" / "data" / "property_listings.csv",
         "history": ROOT / "domains" / "book-real-estate" / "data" / "property_history.csv",
@@ -158,7 +118,6 @@ NICHE_NAMES = {
     "github_trending": "GitHub Trending",
     "jobs": "Job Market",
     "flights": "Flight Prices",
-    "opportunities": "Money Opportunities",
     "property": "Real Estate",
     "seo": "SEO Rankings",
     "ai_tools": "AI Tools",
@@ -586,59 +545,6 @@ def extract_flight_insights(latest: list, history: list) -> list:
     return insights
 
 
-def extract_opportunity_insights(latest: list, history: list) -> list:
-    """Extract money opportunity insights."""
-    insights = []
-    if not latest:
-        return insights
-
-    # High-score opportunities
-    opps = []
-    for row in latest:
-        try:
-            score = int(row.get("trend_score", 0))
-            if score >= 70:
-                opps.append({
-                    "title": (row.get("title", "?") or "?")[:60],
-                    "category": row.get("category", "?"),
-                    "score": score,
-                    "source": row.get("source", "?"),
-                    "url": row.get("url", ""),
-                })
-        except (ValueError, TypeError):
-            continue
-
-    if opps:
-        opps.sort(key=lambda x: x["score"], reverse=True)
-        top = opps[0]
-        insights.append({
-            "type": "hot_opportunity",
-            "title": f"Hot opportunity: {top['title']} (score: {top['score']})",
-            "narrative": f"Top-scoring opportunity: {top['title']} in {top['category']} "
-                        f"with a trend score of {top['score']}/100.",
-            "data_points": {"top_opportunities": opps[:5]},
-            "actionability": top["score"],
-            "content_hook": f"💰 Trending now: {top['title']} — score {top['score']}/100",
-        })
-
-        # Category breakdown
-        cats = {}
-        for o in opps:
-            cats[o["category"]] = cats.get(o["category"], 0) + 1
-        if cats:
-            top_cat = max(cats, key=cats.get)
-            insights.append({
-                "type": "category_trend",
-                "title": f"{top_cat.replace('-', ' ').title()} dominates with {cats[top_cat]} hot opportunities",
-                "narrative": f"By category: {', '.join(f'{c.replace('-', ' ')} ({n})' for c, n in sorted(cats.items(), key=lambda x: -x[1]))}.",
-                "data_points": {"categories": cats},
-                "actionability": 60,
-                "content_hook": f"📊 Where the money is: {top_cat.replace('-', ' ').title()}",
-            })
-
-    return insights
-
-
 def extract_exchange_rate_insights(latest: list, history: list) -> list:
     """Extract exchange rate insights."""
     insights = []
@@ -898,7 +804,6 @@ EXTRACTORS = {
     "github_trending": extract_github_insights,
     "jobs": extract_job_insights,
     "flights": extract_flight_insights,
-    "opportunities": extract_opportunity_insights,
     "exchange_rates": extract_exchange_rate_insights,
     "marketplace": extract_marketplace_insights,
     "restaurants": extract_restaurant_insights,
@@ -924,16 +829,12 @@ def generate_insights(niches: list = None, min_score: int = 0) -> dict:
             continue
 
         paths = SCRAPER_PATHS[niche]
-        if paths.get("source_kind") == "opportunity_v1_api":
-            latest = load_opportunity_rows(history=False, max_rows=500)
-            history = load_opportunity_rows(history=True, max_rows=5000)
-        else:
-            latest = load_csv(paths["latest"]) if paths.get("latest") else []
-            history = (
-                load_csv(paths["history"], max_rows=5000)
-                if paths.get("history")
-                else []
-            )
+        latest = load_csv(paths["latest"]) if paths.get("latest") else []
+        history = (
+            load_csv(paths["history"], max_rows=5000)
+            if paths.get("history")
+            else []
+        )
 
         extractor = EXTRACTORS.get(niche)
         if not extractor:

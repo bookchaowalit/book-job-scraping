@@ -61,16 +61,24 @@ business_lanes:
     priority: P2
     purpose: "Flight and route price intelligence"
     contract: travel-capture
-  opportunities:
-    priority: P2
-    purpose: "Cross-source opportunity discovery"
-    contract: opportunity-capture
   operations:
     priority: P0
     purpose: "Collection health and operational visibility"
     contract: local-ops
 
 sources:
+  - job: career_postings
+    business: jobs
+    source: "Canonical, Appier, PayPay public Greenhouse boards"
+    channel: api
+    url: "https://boards-api.greenhouse.io"
+    engine: httpx
+    schedule: "0 */6 * * *"
+    module: "scripts.career_discovery"
+    status: active
+    priority: P0
+    contract: job.v1
+    next_action: "Capture career_postings.csv, qualify through job_match_filter into job_matches, then review exact documents before manual ATS submission."
   - job: notebookspec_tech
     business: news
     source: NotebookSpec
@@ -392,29 +400,14 @@ sources:
     url: null
     channel: local
     engine: local
-    schedule: "30 7 * * *"
+    schedule: "0 */6 * * *"
     module: scripts.filter_job_matches
     status: active
     priority: P0
     business_value: high
     contract: job.v1-derived
     owner_repository: book-job-scraping
-    next_action: "Keep scoring, deduplication, and input/output paths covered by tests."
-
-  - job: money_opportunities
-    business: opportunities
-    source: Cross-source opportunity discovery
-    url: "https://www.etsy.com/market/trending"
-    channel: hybrid
-    engine: httpx
-    schedule: "0 10 * * *"
-    module: opportunities.scrape_money_opportunities
-    status: blocked
-    priority: P2
-    business_value: medium
-    contract: opportunity-capture
-    owner_repository: book-opportunity-intelligence
-    next_action: "Define source-specific provenance and consent/rate-limit rules before implementing."
+    next_action: "Enforce config/job_targeting.yaml on every match; PASS ranks first, VERIFY stays review-only, and REJECT never reaches preparation."
 
   - job: scraper_dashboard
     business: operations

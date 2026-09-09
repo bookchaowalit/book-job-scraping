@@ -87,8 +87,9 @@ Full detail: [`SAFETY.md`](./SAFETY.md).
   `.venv` plus `flock` to prevent overlapping runs.
 - The enabled collection surface is eight configured jobs. News, Wongnai,
   Kaidee, SEO, AI tools, crypto, FX, stocks, and DefiLlama yields are
-  `migrated` to domain crons. Three jobs remain blocked: `flight_prices`,
-  `money_opportunities`, and `ddproperty_condos`.
+  `migrated` to domain crons. Two jobs remain blocked: `flight_prices` and
+  `ddproperty_condos`. The former `money_opportunities` cross-source lane was
+  retired with the shared opportunity synthesis and is no longer scheduled.
 - Domain adapters also live in sibling repos with their own crons.
 - `config/source_coverage.yaml` tracks 24 jobs across 12 business lanes and
   orders acquisition as API/CLI/RSS before scraping, with a priority queue for

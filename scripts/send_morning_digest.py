@@ -64,22 +64,7 @@ def build_digest_message(dashboard: dict) -> str:
         "",
     ]
 
-    # ── 1. Money Opportunities (highest priority) ──
-    money = summary.get("money_opportunities", {})
-    if money.get("total", 0) > 0:
-        lines.append(f"💰 <b>Money Opportunities</b> — {money['total']} total, {money.get('high_value', 0)} high-value")
-        for opp in money.get("top_opportunities", [])[:3]:
-            score = opp.get("score", 0)
-            emoji = "🔥" if score >= 90 else "⚡"
-            title = opp.get("title", "?")[:45]
-            url = opp.get("url", "")
-            if url:
-                lines.append(f"  {emoji} [{score}] <a href=\"{url}\">{title}</a>")
-            else:
-                lines.append(f"  {emoji} [{score}] {title}")
-        lines.append("")
-
-    # ── 2. Job Matches ──
+    # ── Job Matches ──
     jobs = summary.get("matched_jobs", {})
     if jobs.get("total", 0) > 0:
         hot = jobs.get("hot", 0)

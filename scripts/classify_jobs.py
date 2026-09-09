@@ -14,6 +14,8 @@ import csv
 import re
 from pathlib import Path
 
+from job_target_policy import POLICY_FIELDS, qualify_job
+
 SCRIPT_DIR = Path(__file__).resolve().parent
 DATA_DIR = SCRIPT_DIR.parent / "data"
 TRACKER_FILE = DATA_DIR / "apply_tracker.csv"
@@ -77,7 +79,7 @@ EXPERIENCE_PATTERNS = {
 # Country detection (from URL or note)
 COUNTRY_PATTERNS = {
     "TH": [r"\bthailand\b", r"\bbangkok\b", r"\.co\.th\b", r"\bthai\b"],
-    "US": [r"\bunited\s*states\b", r"\busa\b", r"\bca\b", r"\bny\b", r"\bsf\b", r"\bla\b", r"\.com\b"],
+    "US": [r"\bunited\s*states\b", r"\bu\.s\.a?\.?\b", r"\busa\b", r"\bnew\s*york\b", r"\bsan\s*francisco\b"],
     "UK": [r"\bunited\s*kingdom\b", r"\buk\b", r"\blondon\b", r"\.co\.uk\b"],
     "DE": [r"\bgermany\b", r"\bberlin\b", r"\bmunich\b", r"\.de\b"],
     "NL": [r"\bnetherlands\b", r"\bdutch\b", r"\bamsterdam\b", r"\.nl\b"],
@@ -125,8 +127,7 @@ def classify_job_type(text: str) -> str:
             if re.search(pattern, text_lower):
                 return job_type
     
-    # Default to Full-time if no contract/freelance mention
-    return "Full-time"
+    return ""
 
 
 def classify_experience(text: str) -> str:
@@ -184,7 +185,8 @@ def main():
     print(f"Loaded {len(rows)} jobs from tracker")
     
     # Check if new columns already exist
-    new_cols = ["work_type", "visa_sponsor", "job_type", "experience_level", "country"]
+    policy_cols = list(POLICY_FIELDS)
+    new_cols = ["work_type", "visa_sponsor", "job_type", "experience_level", "country", *policy_cols]
     existing_cols = fieldnames or []
     cols_to_add = [c for c in new_cols if c not in existing_cols]
     
@@ -208,17 +210,24 @@ def main():
         for col in cols_to_add:
             row[col] = ""
         
-        # Classify
-        if "work_type" in cols_to_add or not row.get("work_type"):
-            row["work_type"] = classify_work_type(text)
-        if "visa_sponsor" in cols_to_add or not row.get("visa_sponsor"):
-            row["visa_sponsor"] = classify_visa_sponsor(text)
-        if "job_type" in cols_to_add or not row.get("job_type"):
-            row["job_type"] = classify_job_type(text)
-        if "experience_level" in cols_to_add or not row.get("experience_level"):
-            row["experience_level"] = classify_experience(text)
-        if "country" in cols_to_add or not row.get("country"):
-            row["country"] = classify_country(text, url)
+        # Recompute the contract-first policy on every run so legacy defaults
+        # (notably unknown => Full-time and .com => US) cannot persist.
+        qualification = qualify_job(row)
+        row.update(qualification)
+        arrangement = qualification["work_arrangement"]
+        eligibility = qualification["thailand_eligibility"]
+        if arrangement == "Remote":
+            row["work_type"] = "WFA" if eligibility in {"YES", "LIKELY"} else "WFH"
+        elif arrangement == "Hybrid":
+            row["work_type"] = "Hybrid"
+        elif arrangement == "Onsite":
+            row["work_type"] = "WFO"
+        else:
+            row["work_type"] = ""
+        row["visa_sponsor"] = classify_visa_sponsor(text)
+        row["job_type"] = "" if qualification["employment_type"] == "Unknown" else qualification["employment_type"]
+        row["experience_level"] = classify_experience(text)
+        row["country"] = classify_country(text, url)
         
         classified.append(row)
         

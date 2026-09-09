@@ -1,0 +1,10 @@
+schema_version: career-sources.v1
+# Public GET endpoints only; no ATS application keys or candidate data.
+# Job-specific visa and location evidence must come from the posting body.
+greenhouse_boards:
+  - board: canonical
+    company: Canonical
+  - board: appier
+    company: Appier
+  - board: paypay
+    company: PayPay

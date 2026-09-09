@@ -1,5 +1,10 @@
 # Book Job Scraping — Multi-Engine Capture + Job Pipeline
 
+International remote career changes and relocation now have separate review
+lanes. See [Career workflow](CAREER-WORKFLOW.md) for public company discovery,
+review packets, exact-document preparation and receipt-backed manual
+submission tracking. Live automated ATS submission remains unverified.
+
 Hexagonal-architecture scraping platform with 5 engines, scheduled jobs,
 MCP search over local storage, and a **job application prep** pipeline.
 
@@ -118,11 +123,13 @@ The scheduler state is written to `data/schedule_state.json`.
 | `thai_tech_news` | news | Blognone Atom | Every 2 hours | migrated to book-news-scraping |
 | `seo_rankings` | marketing | httpx public pages | Daily 8:00 AM | migrated to book-seo-data |
 | `job_postings` | jobs | firecrawl+httpx | Every 6 hours | enabled |
-| `job_match_filter` | jobs | local | Daily 7:30 AM | enabled |
+| `job_match_filter` | jobs | local | Every 6 hours, after capture | enabled |
 | `scraper_dashboard` | operations | local | 8:15, 11:15, 20:15 | enabled |
 
-Three entries remain blocked in the coverage registry: `flight_prices` and
-`money_opportunities` still need dedicated adapters, while
+Two entries remain blocked in the coverage registry: `flight_prices` and
+`ddproperty_condos` still need a permitted, trustworthy live adapter. The
+former cross-source `money_opportunities` lane was retired with the shared
+opportunity synthesis; it is no longer scheduled or a collection target.
 `ddproperty_condos` has a Thai `__NEXT_DATA__` parser and fixture but live
 collection hits a Cloudflare JS challenge. `seo_rankings` is enabled as a
 public-page provenance check (no SERP ranks on the free path). News RSS jobs
@@ -392,12 +399,23 @@ See `requirements.txt`. Key packages:
 
 The job scraping pipeline automates discovery, matching, and application tracking for remote dev jobs.
 
+The targeting policy also has a separate bridge-to-hire lane for
+`Contract-to-hire`, `Paid trial`, `Apprenticeship`, `Fellowship`, `Internship`,
+and `Volunteer` signals.  A bounded volunteer or open-source contribution is
+useful for portfolio, maintainer references, and network—not proof of a job
+offer—so it remains `VERIFY`/review-only.  Paid bridge programs can reach
+`PASS` only after a human records compensation, scope/duration, mentor,
+conversion/reference path, Thailand eligibility, compatible hours, and a
+contractor boundary.  Upfront fees, income-share entry, and indefinite unpaid
+production work are rejected.
+
 ### Data Flow
 
 ```
 scrape_job_postings.py
     → job_postings.csv (latest snapshot, all sources)
-    → matched_jobs.csv (scored against skills, deduplicated)
+    → config/job_targeting.yaml (contract-first + bridge PASS / VERIFY / REJECT)
+    → matched_jobs.csv (PASS first, VERIFY review-only, REJECT excluded)
     → job_descriptions.csv (top matched descriptions, optional enrichment)
     → apply_tracker.csv (via auto_seed_tracker.py, discovered/prepared statuses)
     → resume_variants/ (local application-prep variants)
@@ -460,6 +478,16 @@ change on the next run):
 | `auto_send_email.py` | Automated email sending with follow-ups |
 | `find_recruiter_emails.py` | Discovers recruiter contacts from company data |
 
+The scheduled search uses international remote sources plus Fastwork,
+PeoplePerHour, and Toptal. It includes contract-to-hire, paid-trial,
+apprenticeship, fellowship, and volunteer discovery keywords without adding a
+second scheduler or auto-application path. Generic JobThai/JobBKK full-time
+collection is not scheduled. Downstream promotion and draft preparation accept `PASS` only;
+live email/ATS submission additionally requires a human-recorded
+`application_readiness=APPROVED` and the independent live-send unlock gates.
+Each scheduled match refresh also seeds new `PASS` rows into the local tracker
+as `discovered`; it does not notify or submit them.
+
 ### Running the Pipeline
 
 ```bash
@@ -467,7 +495,7 @@ change on the next run):
 python scripts/scrape_job_postings.py
 python scripts/filter_job_matches.py
 python scripts/scrape_job_descriptions.py --top 10
-python scripts/auto_seed_tracker.py --min-score 8
+python scripts/auto_seed_tracker.py --min-score 5
 python scripts/multi_resume_manager.py --init
 python scripts/pipeline_runner.py --health
 

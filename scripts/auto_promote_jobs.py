@@ -15,6 +15,13 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from job_target_policy import (
+    HUMAN_VERIFICATION_FIELDS,
+    SOURCE_EVIDENCE_FIELDS,
+    PASS,
+    is_qualified_for_preparation,
+)
+
 try:
     from dotenv import load_dotenv
     _root = Path(__file__).resolve().parents[1]
@@ -30,6 +37,20 @@ TRACKER_CSV = DATA_DIR / "apply_tracker.csv"
 # Telegram config
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "5255551291")
+
+POLICY_FIELDS = [
+    "qualification_status",
+    "policy_version",
+    "employment_type",
+    "work_arrangement",
+    "thailand_eligibility",
+    "concurrent_employment",
+    "engagement_boundary",
+    "application_readiness",
+    "qualification_reasons",
+    *HUMAN_VERIFICATION_FIELDS,
+    *SOURCE_EVIDENCE_FIELDS,
+]
 
 
 def load_matched_jobs() -> list:
@@ -61,11 +82,11 @@ def load_tracker() -> dict:
 
 
 def save_tracker(entries: dict):
-    """Save tracker entries back to CSV. Auto-detects schema (4-col or 6-col)."""
+    """Save tracker entries without dropping existing or qualification columns."""
     rows = list(entries.values())
-    # Detect schema from first entry
-    has_title = any("title" in r for r in rows)
-    fieldnames = ["url", "title", "company", "status", "note", "updated_at"] if has_title else ["url", "status", "note", "updated_at"]
+    preferred = ["url", "title", "company", "status", "note", "updated_at", *POLICY_FIELDS]
+    extras = sorted({key for row in rows for key in row} - set(preferred))
+    fieldnames = preferred + extras
     # Sort by updated_at descending
     rows.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
     with open(TRACKER_CSV, "w", newline="") as f:
@@ -91,6 +112,10 @@ def backfill_tracker(entries: dict, jobs: list) -> int:
             # Update note with current score
             if job.get("_score"):
                 entry["note"] = f"score={job['_score']}"
+            for field in POLICY_FIELDS:
+                if job.get(field) and entry.get(field) != job[field]:
+                    entry[field] = job[field]
+                    updated += 1
     return updated
 
 
@@ -107,6 +132,8 @@ def promote_jobs(jobs: list, entries: dict, min_score: int, top_n: int) -> list:
             continue
         if url in entries:
             continue  # already tracked
+        if not is_qualified_for_preparation(job):
+            continue
         score = job.get("_score", 0)
         if score < min_score:
             continue
@@ -116,8 +143,9 @@ def promote_jobs(jobs: list, entries: dict, min_score: int, top_n: int) -> list:
             "title": job.get("title", ""),
             "company": job.get("company", ""),
             "status": "notified",
-            "note": f"score={score}",
+            "note": f"score={score}; qualification={PASS}",
             "updated_at": now,
+            **{field: job.get(field, "") for field in POLICY_FIELDS},
         }
         added.append(job)
         count += 1
@@ -132,6 +160,8 @@ def promote_discovered(entries: dict, min_score: int) -> list:
     promoted = []
     for url, entry in entries.items():
         if entry.get("status") != "discovered":
+            continue
+        if not is_qualified_for_preparation(entry):
             continue
         m = re.search(r"score[:\s]+(\d+)", entry.get("note", ""))
         score = int(m.group(1)) if m else 0

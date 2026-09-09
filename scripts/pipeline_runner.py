@@ -186,7 +186,7 @@ PIPELINE_STEPS = [
     {
         "name": "auto_seed_tracker",
         "label": "Auto-Seed Application Tracker",
-        "cmd": [sys.executable, str(SCRIPTS / "auto_seed_tracker.py"), "--min-score", "8"],
+        "cmd": [sys.executable, str(SCRIPTS / "auto_seed_tracker.py"), "--min-score", "5"],
         "group": "promote",
     },
     {

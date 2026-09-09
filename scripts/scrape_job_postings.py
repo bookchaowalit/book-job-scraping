@@ -906,6 +906,89 @@ def fetch_fastwork(keyword: str) -> list:
     return jobs
 
 
+# ── PeoplePerHour (public freelance listings) ────────────────────────────────
+_PEOPLEPERHOUR_CACHE = None
+
+
+def _load_peopleperhour_cards() -> list:
+    """Fetch one bounded remote technology page and parse its project cards."""
+    global _PEOPLEPERHOUR_CACHE
+    if _PEOPLEPERHOUR_CACHE is not None:
+        return _PEOPLEPERHOUR_CACHE
+
+    url = "https://www.peopleperhour.com/freelance-jobs/technology-programming?location=remote"
+    try:
+        response = httpx.get(url, headers=HEADERS, timeout=30, follow_redirects=True)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        rows = []
+        seen_urls = set()
+        for link in soup.find_all("a", href=True):
+            href = str(link.get("href") or "")
+            if not re.search(r"/freelance-jobs/.+-\d+(?:[/?#]|$)", href):
+                continue
+            job_url = href if href.startswith("http") else f"https://www.peopleperhour.com{href}"
+            job_url = job_url.split("?")[0].split("#")[0]
+            if job_url in seen_urls:
+                continue
+            title = " ".join(link.get_text(" ", strip=True).split())
+            if len(title) < 8:
+                continue
+            card = link
+            while card and card.name != "body":
+                classes = card.get("class") or []
+                if any("item__container" in str(item) for item in classes):
+                    break
+                card = card.parent
+            context = " ".join((card or link).get_text(" ", strip=True).split())
+            price_match = re.search(r"(?:\$|£|€)\s?[\d,]+(?:\s*-\s*(?:\$|£|€)?\s?[\d,]+)?", context)
+            author_match = re.search(r"\bby\s+(.+?)\s+(?=\$|£|€)", context, re.IGNORECASE)
+            posted_match = re.search(r"\b(?:posted\s+)?(?:\d+\s+)?(?:minutes?|hours?|days?)\s+ago\b", context, re.IGNORECASE)
+            rows.append({
+                "title": title[:100],
+                "company": author_match.group(1).strip()[:80] if author_match else "PeoplePerHour Client",
+                "location": "Remote/Marketplace",
+                "salary": price_match.group(0).replace(" ", "") if price_match else "",
+                "url": job_url,
+                "source": "PeoplePerHour",
+                "posted": posted_match.group(0) if posted_match else "",
+                "context": context,
+            })
+            seen_urls.add(job_url)
+        _PEOPLEPERHOUR_CACHE = rows
+        return rows
+    except Exception as exc:
+        print(f"  Warning: PeoplePerHour collection failed: {exc}")
+        _PEOPLEPERHOUR_CACHE = []
+        return []
+
+
+def fetch_peopleperhour(keyword: str) -> list:
+    """Return locally filtered PeoplePerHour freelance projects."""
+    try:
+        from .job_role_relevance import contains_term
+    except ImportError:
+        from job_role_relevance import contains_term
+
+    ignored = {"contract", "freelance", "remote", "part-time", "fractional"}
+    tokens = [
+        token
+        for token in re.findall(r"[a-z0-9.+#-]+", keyword.lower())
+        if len(token) >= 2 and token not in ignored
+    ]
+    jobs = []
+    for card in _load_peopleperhour_cards():
+        context = f"{card.get('title', '')} {card.get('context', '')}"
+        if tokens and not any(contains_term(context, token) for token in tokens):
+            continue
+        jobs.append({
+            **{key: value for key, value in card.items() if key != "context"},
+            "keyword": keyword,
+            "tags": f"freelance,peopleperhour,{keyword}",
+        })
+    return jobs
+
+
 # ── Fiverr (free scraper, freelance marketplace) ─────────────────────────────
 def fetch_fiverr(keyword: str) -> list:
     """Fiverr blocks scraping (403). Returns empty."""
@@ -1669,6 +1752,8 @@ def main(boards=None, keywords=None, min_salary=DEFAULT_MIN_SALARY, output_dir=N
                 jobs = fetch_upwork(keyword)
             elif board == "fastwork":
                 jobs = fetch_fastwork(keyword)
+            elif board == "peopleperhour":
+                jobs = fetch_peopleperhour(keyword)
             elif board == "fiverr":
                 jobs = fetch_fiverr(keyword)
             elif board == "toptal":
@@ -1750,8 +1835,8 @@ def main(boards=None, keywords=None, min_salary=DEFAULT_MIN_SALARY, output_dir=N
 if __name__ == "__main__":
     import argparse as _argparse
     _p = _argparse.ArgumentParser(description="Scrape remote job postings")
-    _p.add_argument("--boards", default="remoteok-api,himalayas,landing-jobs,jobicy,indeed,seek-au,seek-nz,jobthai,jobsdb-th,jobbkk,hn-hiring,remotive,upwork,fastwork,fiverr,toptal,arc,workingnomads,turing,themuse,wellfound,otta,dice,builtin,remoteco,jobspresso,workatastartup,devjobstore")
-    _p.add_argument("--keywords", default="python,react,next.js,typescript,full-stack,developer,AI engineer,backend,frontend,node.js,FastAPI,Django")
+    _p.add_argument("--boards", default="remoteok-api,himalayas,landing-jobs,jobicy,hn-hiring,remotive,upwork,fastwork,peopleperhour,toptal,arc,workingnomads,turing,themuse,wellfound,otta,builtin,remoteco,jobspresso,workatastartup,devjobstore")
+    _p.add_argument("--keywords", default="python contract,next.js contract,react freelance,AI automation contract,part-time full-stack,fractional engineer,contract-to-hire developer,paid trial software developer,apprenticeship software engineer,open source fellowship developer,volunteer software developer,stipend developer fellowship,eBPF community fellowship")
     _p.add_argument("--min-salary", type=int, default=0)
     _a = _p.parse_args()
     main(boards=_a.boards, keywords=_a.keywords, min_salary=_a.min_salary)

@@ -25,6 +25,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from job_target_policy import is_qualified_for_preparation
+
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data"
 SCRIPTS_DIR = ROOT / "scripts"
@@ -83,6 +85,8 @@ def get_candidate_jobs(min_score: int = 40) -> list:
 
     candidates = []
     for job in matched:
+        if not is_qualified_for_preparation(job):
+            continue
         url = job.get("url", "").lower()
         try:
             score = int(job.get("_score", job.get("score", 0)))

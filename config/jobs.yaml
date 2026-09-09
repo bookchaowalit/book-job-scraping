@@ -352,24 +352,23 @@ jobs:
         # HTML scrapers (higher value, may break)
         - arc
         - toptal
-        - dice
-        # Thai market
+        # Contract/freelance marketplaces
         - fastwork
-        - jobthai
-        - jobbkk
+        - peopleperhour
       keywords:
-        - python
-        - react
-        - next.js
-        - typescript
-        - full-stack
-        - developer
-        - AI engineer
-        - backend
-        - frontend
-        - node.js
-        - FastAPI
-        - Django
+        - python contract
+        - next.js contract
+        - react freelance
+        - AI automation contract
+        - part-time full-stack
+        - fractional engineer
+        - contract-to-hire developer
+        - paid trial software developer
+        - apprenticeship software engineer
+        - open source fellowship developer
+        - volunteer software developer
+        - stipend developer fellowship
+        - eBPF community fellowship
       min_salary: 0
 
   # ── STOCK PRICES (daily 8am) ─────────────────────────────
@@ -466,12 +465,24 @@ jobs:
       days_ahead: 30
       alert_drop_pct: 15.0
 
+  # Public company ATS capture; collection only, no application submission.
+  - name: career_postings
+    category: sales
+    engine: httpx
+    url: "https://boards-api.greenhouse.io"
+    schedule: "0 */6 * * *"
+    enabled: true
+    rate_limit: 2.0
+    scraper_module: "scripts.career_discovery"
+    scraper_class: "CareerDiscovery"
+    params: {}
+
   # ── JOB MATCH FILTER (runs after job_postings) ─────────────
   - name: job_match_filter
     category: sales
     engine: local
     url: null
-    schedule: "30 7 * * *"
+    schedule: "0 */6 * * *"
     enabled: true
     rate_limit: 0.0
     scraper_module: "scripts.filter_job_matches"
@@ -480,45 +491,14 @@ jobs:
       min_score: 5
       top: 15
       input: "data/job_postings.csv"
+      supplemental_input: "data/career_postings.csv"
       output: "data/matched_jobs.csv"
-
-  # ── MONEY OPPORTUNITIES (daily) ─────────────────────────────
-  - name: money_opportunities
-    category: opportunities
-    engine: httpx
-    url: "https://www.etsy.com/market/trending"
-    schedule: "0 10 * * *"
-    enabled: false  # disabled: opportunities.scrape_money_opportunities is not present in this checkout
-    rate_limit: 5.0
-    scraper_module: "opportunities.scrape_money_opportunities"
-    scraper_class: "MoneyOpportunityScraper"
-    params:
-      sources:
-        - hn
-        - github
-        - firecrawl-search
-        - etsy
-        - ebay
-        - tiktok
-        - reddit
-        - producthunt
-        - amazon
-        - crypto
-        - tcg-prices
-        - etsy-sold
-        - amazon-bsr
-      categories:
-        - tcg
-        - digital-products
-        - ai-content
-        - print-on-demand
-        - courses
-        - freelance-services
-        - trending-products
-        - content-creation
-      min_score: 60
-      send_digest: true
-      push_todoist: true
+      descriptions: "data/job_descriptions.csv"
+      include_statuses:
+        - PASS
+        - VERIFY
+      seed_tracker: true
+      seed_min_score: 5
 
   # ── SCRAPER DASHBOARD (3x/day: 8:15, 11:15, 20:15) ───────
   - name: scraper_dashboard

@@ -40,6 +40,7 @@ CHROME_PATHS = [
 
 from repo_paths import REPO_ROOT as ROOT, DATA_DIR, load_env
 from safety import STATUS_SUBMITTED, assert_no_network_send_without_flag, is_live_send_unlocked
+from job_target_policy import is_approved_for_submission
 
 load_env()
 
@@ -289,6 +290,8 @@ def get_ats_candidates() -> list:
     for row in rows:
         if row.get("status") != "discovered":
             continue
+        if not is_approved_for_submission(row):
+            continue
         url = row.get("url", "")
         ats_info = extract_ats_info(url)
         if ats_info["ats"] in ["greenhouse", "lever"]:
@@ -305,7 +308,9 @@ def get_ats_candidates() -> list:
 
 def update_tracker_status(url: str, status: str, note: str):
     rows = load_csv(APPLY_TRACKER)
-    fieldnames = ["url", "title", "company", "status", "note", "updated_at"]
+    preferred = ["url", "title", "company", "status", "note", "updated_at"]
+    extras = sorted({key for row in rows for key in row} - set(preferred))
+    fieldnames = preferred + extras
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     for row in rows:
         if row.get("url") == url:

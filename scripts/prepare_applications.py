@@ -21,6 +21,8 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
+from job_target_policy import is_qualified_for_preparation
+
 # Import email templates
 try:
     from email_templates import generate_application_email, is_thai_company
@@ -70,7 +72,7 @@ def load_discovered_jobs() -> list[dict]:
     jobs = []
     with open(TRACKER_FILE) as f:
         for row in csv.DictReader(f):
-            if row.get('status') == 'discovered':
+            if row.get('status') == 'discovered' and is_qualified_for_preparation(row):
                 jobs.append(row)
     return jobs
 
