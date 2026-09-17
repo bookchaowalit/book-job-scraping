@@ -17,6 +17,7 @@ APIs or the lake consumer.
 | Writes capture files under this repo’s `data/` | Writer into another app’s database |
 | Optional MCP search over local storage | Hosted job API (`:8109`) |
 | Gated send/apply (blocked by default) | Always-on auto-apply production system |
+| User-selected property or rendered Facebook Group post export + review queue | Social login, private-group crawl, or automatic outreach |
 
 ## Boundary vs `book-job-data` (contract)
 
@@ -81,19 +82,36 @@ gates stay unit-testable.
 
 Full detail: [`SAFETY.md`](./SAFETY.md).
 
-## Current runtime state (2026-08-27)
+## Current runtime state (2026-09-14)
 
 - Collection cron is installed every five minutes and uses the repository
   `.venv` plus `flock` to prevent overlapping runs.
-- The enabled collection surface is eight configured jobs. News, Wongnai,
+- The enabled collection surface is nine configured jobs. News, Wongnai,
   Kaidee, SEO, AI tools, crypto, FX, stocks, and DefiLlama yields are
-  `migrated` to domain crons. Two jobs remain blocked: `flight_prices` and
-  `ddproperty_condos`. The former `money_opportunities` cross-source lane was
-  retired with the shared opportunity synthesis and is no longer scheduled.
+  `migrated` to domain crons. `flight_prices` and `ddproperty_condos` remain
+  blocked, while `property_social_leads` is planned behind an official search
+  API storage-rights gate. The former `money_opportunities` cross-source lane
+  was retired with the shared opportunity synthesis and is no longer scheduled.
 - Domain adapters also live in sibling repos with their own crons.
-- `config/source_coverage.yaml` tracks 24 jobs across 12 business lanes and
+- `config/source_coverage.yaml` tracks 25 jobs across 11 business lanes and
   orders acquisition as API/CLI/RSS before scraping, with a priority queue for
   missing adapters.
+- Property/social captures use `property.v1`; rows remain `pending` and
+  `not_contacted` until the redacted social-capture validator and a named human
+  reviewer approve them.
+- Rendered Facebook Group post captures use
+  [`contracts/facebook-group-post.v1.json`](contracts/facebook-group-post.v1.json);
+  visibility, completeness, and post identity are retained as source evidence,
+  while private/unknown rows stay gated and outreach remains locked.
+- `chrome-extension/` can capture visible text from the operator’s active
+  public tab and export raw property or Facebook Group post CSVs.
+  `scripts/scrape_facebook_group_background.py` provides an opt-in Playwright
+  runner for the same rendered Group boundary using a dedicated local profile;
+  it is not scheduled by the collection cron.
+  `scripts/import_property_leads.py` and
+  `scripts/import_facebook_group_posts.py` are offline normalizers and source
+  gates; they keep explicit owner/co-agent evidence, deduplicate, quarantine
+  invalid/non-public rows, and never write the CRM or contact a person.
 - Collection health is green when the four core artifacts are fresh:
   `job_postings.csv`, `matched_jobs.csv`, `apply_tracker.csv`, and
   `job_descriptions.csv`.

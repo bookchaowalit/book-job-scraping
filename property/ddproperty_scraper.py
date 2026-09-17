@@ -23,6 +23,9 @@ try:
 except ImportError:  # domain repository checkout
     import scrape_property_listings as source
 
+from property.lead_extraction import CONTACT_FIELDS, enrich_listing
+from property.listing_config import property_source_platform
+
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_OUTPUT_DIR = ROOT / "data" / "exported"
@@ -32,12 +35,16 @@ FIELDNAMES = [
     "scraped_at",
     "title",
     "price",
+    "type",
     "location",
     "bedrooms",
     "bathrooms",
     "area_sqm",
     "url",
     "listing_type",
+    "source_channel",
+    "source_platform",
+    *CONTACT_FIELDS,
 ]
 
 
@@ -79,7 +86,16 @@ def _fallback_price(text: str) -> float | None:
 def _normalise_listing(listing: dict[str, Any], listing_type: str) -> dict[str, Any]:
     normalised = dict(listing)
     normalised["listing_type"] = listing_type
+    normalised["type"] = listing_type
     normalised["url"] = _canonical_url(str(normalised.get("url") or SOURCE_URL))
+    if not normalised.get("contact_confidence"):
+        text = " ".join(
+            str(normalised.get(field) or "")
+            for field in ("title", "description", "publisher", "contact", "contact_text")
+        )
+        normalised = enrich_listing(normalised, text=text, source_url=normalised["url"])
+    normalised.setdefault("source_channel", "listing")
+    normalised.setdefault("source_platform", "ddproperty")
     return normalised
 
 
@@ -115,6 +131,37 @@ def _listing_price(listing_data: dict[str, Any], meta: dict[str, Any]) -> float 
     if isinstance(price, (int, float, str)) and str(price).strip():
         return _price_value(price)
     return _price_value(meta.get("price"))
+
+
+def _public_contact_text(*mappings: dict[str, Any]) -> str:
+    """Collect scalar contact-labelled fields from a public listing payload."""
+
+    parts: list[str] = []
+    key_pattern = re.compile(
+        r"contact|agent|owner|publisher|phone|tel|email|line|facebook|instagram|tiktok|social",
+        re.IGNORECASE,
+    )
+    def visit(mapping: dict[str, Any], prefix: str = "", depth: int = 0) -> None:
+        if depth > 2:
+            return
+        for key, value in mapping.items():
+            label_key = f"{prefix}.{key}" if prefix else str(key)
+            if isinstance(value, dict):
+                visit(value, label_key, depth + 1)
+                continue
+            if not key_pattern.search(label_key) or not isinstance(value, (str, int, float)):
+                continue
+            value_text = str(value).strip()
+            if value_text:
+                # Split camelCase payload keys so the shared extractor can
+                # recognise labels such as agentName and ownerPhone.
+                label = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", label_key)
+                parts.append(f"{label}: {value_text}")
+
+    for mapping in mappings:
+        if isinstance(mapping, dict):
+            visit(mapping)
+    return " ".join(parts)[:2000]
 
 
 def parse_next_data(
@@ -180,6 +227,7 @@ def parse_next_data(
                 "bathrooms": meta.get("bathroom"),
                 "area_sqm": meta.get("floorArea"),
                 "url": url,
+                "contact_text": _public_contact_text(listing_data, meta, item),
             }
         )
     return _dedupe_and_filter(parsed, listing_type, max_price)
@@ -231,7 +279,7 @@ class DDPropertyScraper:
         listings: list[dict[str, Any]] = []
         for result in results:
             url = str(result.get("url") or "")
-            if "ddproperty.com" not in url or "/property/" not in url:
+            if property_source_platform(url) != "ddproperty" or "/property/" not in url:
                 continue
             text = f"{result.get('title', '')} {result.get('snippet', '')}"
             price = _fallback_price(text)
@@ -246,6 +294,8 @@ class DDPropertyScraper:
                     "bathrooms": None,
                     "area_sqm": None,
                     "url": url,
+                    "source_channel": "search",
+                    "source_platform": "ddproperty",
                 }
             )
         return _dedupe_and_filter(listings, self.listing_type, self.max_price)

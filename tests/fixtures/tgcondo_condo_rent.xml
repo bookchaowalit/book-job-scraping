@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Property Results For Condo for Rent</title>
+    <link>https://www.tgcondo.com/Property-Types/condo-for-rent?format=feed&amp;type=rss</link>
+    <description>Synthetic test fixture; not a live listing.</description>
+    <item>
+      <title>Sample Sukhumvit Condominium For Rent - 28,000 ฿/month</title>
+      <link>https://www.tgcondo.com/Property/sample-sukhumvit-rent-1001?utm_source=test</link>
+      <description><![CDATA[<p>Sample Sukhumvit Condominium For Rent</p>
+        <p>1 bedroom<br/>1 bathroom<br/>35 Sq.M.<br/>Located at Sukhumvit Road, Bangkok.</p>]]></description>
+    </item>
+    <item>
+      <title>Sample Silom One Bedroom For Rent - 24,000 ฿ 22,000 ฿/month</title>
+      <link>https://tgcondo.com/Property/sample-silom-rent-1002</link>
+      <description>Sample Silom listing in Bangkok.</description>
+    </item>
+    <item>
+      <title>Unpriced synthetic listing</title>
+      <link>https://www.tgcondo.com/Property/sample-unpriced-1003</link>
+      <description>Do not include this row because it has no explicit rental price.</description>
+    </item>
+    <item>
+      <title>Off-site synthetic listing - 10,000 ฿/month</title>
+      <link>https://example.invalid/Property/off-site-1004</link>
+      <description>Do not include this row because it is not TG Condo.</description>
+    </item>
+  </channel>
+</rss>

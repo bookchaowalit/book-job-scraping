@@ -157,6 +157,85 @@ jobs:
       type: condo
       max_price: 30000
 
+  - name: ennxo_condo_sale
+    category: property
+    engine: httpx
+    url: "https://www.ennxo.com/condo/for-sale"
+    schedule: "0 9 * * *"
+    enabled: false  # planned: adapter and fixture smoke pass; terms/retention review pending
+    rate_limit: 1.0
+    max_pages: 1
+    scraper_module: "property.portal_scrapers"
+    scraper_class: "PortalPropertyScraper"
+    params:
+      source: ennxo
+      type: condo_sale_thailand
+      max_price: 5000000
+      output_stem: property_ennxo_listings
+
+  - name: propertyhub_condo_rent
+    category: property
+    engine: httpx
+    url: "https://propertyhub.in.th/เช่าคอนโด"
+    schedule: "0 10 * * *"
+    enabled: false  # planned: adapter and fixture smoke pass; terms/retention review pending
+    rate_limit: 1.0
+    max_pages: 1
+    scraper_module: "property.portal_scrapers"
+    scraper_class: "PortalPropertyScraper"
+    params:
+      source: propertyhub
+      type: condo_rent_thailand
+      max_price: 30000
+      output_stem: property_propertyhub_listings
+
+  - name: livinginsider_condo_rent
+    category: property
+    engine: httpx
+    url: "https://www.livinginsider.com/condo-rent"
+    schedule: "0 11 * * *"
+    enabled: false  # planned: adapter and fixture smoke pass; terms/retention review pending
+    rate_limit: 1.0
+    max_pages: 1
+    scraper_module: "property.portal_scrapers"
+    scraper_class: "PortalPropertyScraper"
+    params:
+      source: livinginsider
+      type: condo_rent_thailand
+      max_price: 30000
+      output_stem: property_livinginsider_listings
+
+  - name: zmyhome_condo_rent
+    category: property
+    engine: httpx
+    url: "https://zmyhome.com/rent/condo?maxPriceFilter=10000"
+    schedule: "0 12 * * *"
+    enabled: false  # planned: adapter and fixture smoke pass; terms/retention review pending
+    rate_limit: 1.0
+    max_pages: 1
+    scraper_module: "property.portal_scrapers"
+    scraper_class: "PortalPropertyScraper"
+    params:
+      source: zmyhome
+      type: condo_rent_thailand
+      max_price: 30000
+      output_stem: property_zmyhome_listings
+
+  # ── TG CONDO RSS (public feed; contact enrichment is gated) ──
+  - name: tgcondo_condo_rent
+    category: property
+    engine: rss
+    url: "https://www.tgcondo.com/Property-Types/condo-for-rent?format=feed&type=rss"
+    schedule: "0 */6 * * *"
+    enabled: false  # planned: verify source terms/retention before scheduling
+    rate_limit: 1.0
+    scraper_module: "scripts.scrape_tgcondo_rss"
+    scraper_class: "TGCondoRSSScraper"
+    params:
+      feed_url: "https://www.tgcondo.com/Property-Types/condo-for-rent?format=feed&type=rss"
+      limit: 40
+      include_agent_contact: false
+
   # ── CRYPTO PRICES (every 4 hours) ─────────────────────────
   - name: crypto_prices
     category: finance
@@ -297,9 +376,28 @@ jobs:
     scraper_module: "scripts.scrape_property_listings"
     scraper_class: "PropertyListingScraper"
     params:
-      type: condo_sale
+      type: condo_sale_bkk
       max_pages: 3
       alert_drop_pct: 10.0
+
+  # ── PROPERTY SOCIAL LEADS (conditional; official API + public index only) ───
+  - name: property_social_leads
+    category: property
+    engine: httpx
+    url: "https://api.search.brave.com/res/v1/web/search"
+    schedule: "0 */6 * * *"
+    enabled: false  # requires API/storage rights, terms/PDPA, and human review
+    rate_limit: 2.0
+    scraper_module: "scripts.scrape_property_social"
+    scraper_class: "PropertySocialLeadScraper"
+    params:
+      query: "อสังหา กรุงเทพ บ้าน คอนโด (รับ co-agent OR เจ้าของขายเอง OR นายหน้า)"
+      platforms:
+        - facebook
+        - instagram
+        - tiktok
+        - line
+      limit: 50
 
   # ── SEO RANKINGS (daily) ──────────────────────────────────
   - name: seo_rankings

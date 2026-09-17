@@ -60,8 +60,8 @@ SCRAPER_SOURCES = {
     },
     "property": {
         "name": "Property Listings",
-        "latest": ROOT / "domains" / "book-real-estate" / "data" / "property_listings.csv",
-        "history": ROOT / "domains" / "book-real-estate" / "data" / "property_history.csv",
+        "latest": ROOT / "data" / "exported" / "property_listings.csv",
+        "history": ROOT / "data" / "exported" / "property_history.csv",
         "alert_field": "price_thb",
         "alert_threshold": 10.0,
         "icon": "🏠",

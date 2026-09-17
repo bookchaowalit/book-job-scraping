@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Quick Job Saver — Solo Empire Pipeline",
-  "version": "1.0.0",
-  "description": "Save any job from any board directly to your Solo Empire pipeline CSV with one click.",
-  "permissions": ["activeTab", "storage", "contextMenus"],
+  "name": "Quick Saver — Jobs & Property Leads",
+  "version": "1.1.0",
+  "description": "Save jobs, user-selected public property rows, or Facebook Group posts for the Solo Empire review pipeline.",
+  "permissions": ["activeTab", "storage", "contextMenus", "downloads"],
   "host_permissions": [
     "https://*.linkedin.com/*",
     "https://*.indeed.com/*",

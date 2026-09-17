@@ -91,8 +91,8 @@ SCRAPER_PATHS = {
         "history": ROOT / "domains" / "book-travel" / "data" / "flight_prices_history.csv",
     },
     "property": {
-        "latest": ROOT / "domains" / "book-real-estate" / "data" / "property_listings.csv",
-        "history": ROOT / "domains" / "book-real-estate" / "data" / "property_history.csv",
+        "latest": ROOT / "data" / "exported" / "property_listings.csv",
+        "history": ROOT / "data" / "exported" / "property_history.csv",
     },
     "seo": {
         "latest": ROOT / "domains" / "book-marketing" / "data" / "seo_rankings.csv",

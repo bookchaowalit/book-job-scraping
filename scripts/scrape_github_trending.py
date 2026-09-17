@@ -228,9 +228,19 @@ def main():
 
         # Print top per language
         for lang in languages:
-            lang_repos = [r for r in all_repos if r["language"].lower() == lang.lower()]
+            lang_repos = [
+                r for r in all_repos
+                if str(r.get("language") or "").casefold() == lang.casefold()
+            ]
             if lang_repos:
-                print_summary(lang_repos[:5], lang, [o for o in all_opportunities if o["language"].lower() == lang.lower()])
+                print_summary(
+                    lang_repos[:5],
+                    lang,
+                    [
+                        o for o in all_opportunities
+                        if str(o.get("language") or "").casefold() == lang.casefold()
+                    ],
+                )
 
     print(f"\n  Total: {len(all_repos)} repos, {len(all_opportunities)} opportunities")
     print("  Done.")

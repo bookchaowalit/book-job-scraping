@@ -8,11 +8,11 @@ submission tracking. Live automated ATS submission remains unverified.
 Hexagonal-architecture scraping platform with 5 engines, scheduled jobs,
 MCP search over local storage, and a **job application prep** pipeline.
 
-**Canonical nested path:**  
-`projects/product/engineering/book-dev/github/bookchaowalit/book-apps/tools/book-job-scraping/`  
-**Architecture:** Hexagonal (Ports & Adapters)  
-**Engines:** httpx+BS4, Playwright, Selenium, Scrapy, RSS  
-**Categories:** Jobs, E-commerce, Restaurants, Directories, News, Property  
+**Canonical nested path:**
+`projects/product/engineering/book-dev/github/bookchaowalit/book-apps/tools/book-job-scraping/`
+**Architecture:** Hexagonal (Ports & Adapters)
+**Engines:** httpx+BS4, Playwright, Selenium, Scrapy, RSS
+**Categories:** Jobs, E-commerce, Restaurants, Directories, News, Property
 
 **Producer contract / safety:** see [`PRODUCT.md`](./PRODUCT.md) and
 [`SAFETY.md`](./SAFETY.md). This repo is **collection + prep only** —
@@ -65,7 +65,7 @@ book-scraping/
 │   └── server.py               # Uses SearchUseCase → StorageAdapter
 │
 ├── config/
-│   └── jobs.yaml               # 24 configured jobs; 19 enabled in this checkout
+│   └── jobs.yaml               # 26 configured jobs; 9 enabled in this checkout
 │
 ├── templates/                  # Copy-paste templates for new scrapers
 │   ├── new_httpx_scraper.py
@@ -108,7 +108,13 @@ The scheduler state is written to `data/schedule_state.json`.
 | `devto_articles` | discovery | httpx | Daily 10:00 AM | enabled |
 | `producthunt_top` | discovery | httpx | Daily 11:00 AM | enabled |
 | `ai_tools` | ai | Futurepedia HTML | Daily 11:00 AM | migrated to book-ai-tools-data |
-| `property_listings` | property | firecrawl | Daily 9:00 AM | enabled |
+| `property_listings` | property | firecrawl + bounded public fallback | Daily 9:00 AM | enabled (degraded: direct DDproperty 403; fallback only) |
+| `property_social_leads` | property | Brave Search API public index (no social login) | Every 6 hours | conditional / disabled |
+| `tgcondo_condo_rent` | property | TG Condo public RSS | Every 6 hours | planned / disabled pending terms review |
+| `ennxo_condo_sale` | property | ENNXO public HTML | Daily 9:00 AM | planned / disabled pending terms review |
+| `propertyhub_condo_rent` | property | PropertyHub public HTML | Daily 10:00 AM | planned / disabled pending terms review |
+| `livinginsider_condo_rent` | property | LivingInsider public HTML | Daily 11:00 AM | planned / disabled pending terms review |
+| `zmyhome_condo_rent` | property | ZmyHome public HTML | Daily 12:00 PM | planned / disabled pending terms review |
 | `notebookspec_tech` | news | RSS | Every 6 hours | migrated to book-news-scraping |
 | `ddproperty_condos` | property | httpx + Thai `__NEXT_DATA__` | Daily 8:00 AM | blocked: httpx Cloudflare 403 |
 | `crypto_prices` | finance | CoinGecko API | Every 4 hours | migrated to book-crypto-data |
@@ -126,8 +132,9 @@ The scheduler state is written to `data/schedule_state.json`.
 | `job_match_filter` | jobs | local | Every 6 hours, after capture | enabled |
 | `scraper_dashboard` | operations | local | 8:15, 11:15, 20:15 | enabled |
 
-Two entries remain blocked in the coverage registry: `flight_prices` and
-`ddproperty_condos` still need a permitted, trustworthy live adapter. The
+The coverage registry still holds `flight_prices` and `ddproperty_condos`
+behind their source gates, and holds `property_social_leads` as conditional
+until a bounded public-search smoke and terms review pass. The
 former cross-source `money_opportunities` lane was retired with the shared
 opportunity synthesis; it is no longer scheduled or a collection target.
 `ddproperty_condos` has a Thai `__NEXT_DATA__` parser and fixture but live
@@ -157,6 +164,14 @@ returned 20 validated Ethereum pools with a provider timestamp within the
 24-hour freshness bound. The domain cron uses the same five-chain production
 bounds as the previous local job.
 
+The four planned portal adapters (`ennxo`, `propertyhub`, `livinginsider`, and
+`zmyhome`) write separate `property_<source>_listings.csv` supply snapshots.
+They use source-specific selectors, canonical detail URLs, positive-price
+filters, and public contact fields that remain pending human review. They do
+not write the Pantip-only `property-demand.v1` handoff. Keep these jobs
+disabled until source terms, robots observations, retention, and the public
+contact storage basis are documented.
+
 ### Multi-business source coverage
 
 `config/source_coverage.yaml` is the coverage registry for the shared
@@ -179,6 +194,389 @@ independently.
 The DDproperty adapter writes its collection-only snapshot to
 `data/exported/ddproperty_condos.csv` and reuses the shared property parser;
 it does not own matching, alerts, or downstream business decisions.
+
+Property rows now include explicit public contact fields (`contact_role`,
+`co_agent_status`, phone/email/LINE, and platform URLs), the source URL and a
+short evidence snippet.  `lead_review_status=co_agent_candidate` is only a
+review queue signal; it never sends outreach or proves that a person is the
+owner.  Every row also starts with `review_decision=pending` and
+`outreach_status=not_contacted`; a reviewer must record the decision before any
+outreach status can advance.  The social lead adapter searches publicly
+indexed Facebook, Instagram, TikTok, and LINE URLs and stores result metadata in
+`data/exported/property_social_leads.csv`.  It queries the official Brave
+Search API only; it does not scrape the search UI, authenticate to, crawl, or
+bypass private social content.  Persisting API results requires a Brave plan
+that explicitly grants storage rights, plus source-terms/PDPA review and
+human contact-quality review.  Keep the job disabled until those gates pass.
+
+### Public property-seeker demand (direct HTTP only)
+
+The demand lane is separate from `property.v1` listing/owner captures. It uses
+`scripts/scrape_property_demand.py` to fetch only public Pantip search and topic
+HTML with `httpx`; it does not use browser automation, author profiles, login
+sessions, or private groups. `robots.txt`, an HTTPS Pantip host allowlist,
+redirect and response-size bounds, request pacing, and a topic limit are
+enforced by the collector. The command is a dry run by default and is not
+registered with the scheduler.
+
+```bash
+python scripts/scrape_property_demand.py \
+  --query "หาคอนโดเช่า" --limit 10 --dry-run --json
+python scripts/scrape_property_demand.py \
+  --url https://pantip.com/topic/44155476 --dry-run --json
+```
+
+For a larger handoff, repeat several public search queries and use the bounded
+100-topic ceiling. Parsed records are ordered by `posted_at` newest-first;
+records without a trustworthy timestamp remain at the end for review:
+
+```bash
+python scripts/scrape_property_demand.py \
+  --query "หาคอนโดเช่า" \
+  --query "หาเช่าคอนโด" \
+  --query "หาห้องเช่า" \
+  --query "หาบ้านเช่า" \
+  --query "หาซื้อคอนโด" \
+  --query "อยากซื้อบ้าน" \
+  --limit 100 --max-age-days 30 --dry-run --json
+```
+
+First-person seeker text is written to `property-demand.v1` fields only after
+the parser separates it from listing, owner, agent, and co-agent language.
+Missing or stale post timestamps become `needs_more_evidence`; otherwise the
+default remains `permission_needed`. A public topic URL is a review path, not
+permission to call, and the collector never enriches a phone number from a
+profile or hidden page. `call_ready` is reserved for a later human decision and
+is never emitted automatically.
+
+Persisting a review packet requires an explicit retention deadline and a
+source-terms reference. The default CSV handoff is UTF-8 with BOM so Thai text
+opens correctly in spreadsheet tools; it contains only `call_ready`,
+`permission_needed`, and `needs_more_evidence` rows. `not_demand` rows are
+excluded. JSONL remains available with `--format jsonl` for replay/debugging:
+
+```bash
+python scripts/scrape_property_demand.py --persist \
+  --retention-until 2026-12-31T00:00:00Z \
+  --terms-basis-ref "human-reviewed-public-source-terms" \
+  --query "หาคอนโดเช่า"
+```
+
+The default output is `data/exported/property_demand.csv`; use `--output` to
+choose another handoff path. This lane never writes Solo Empire CRM/SQLite and
+never sends outreach. The CSV is a review handoff, not permission to contact.
+
+The contract is [`contracts/property-demand.v1.json`](contracts/property-demand.v1.json).
+
+### Major-source audit
+
+Run the bounded HTTP/robots audit alongside the demand handoff:
+
+```bash
+python scripts/audit_property_demand_sources.py \
+  --output data/exported/property_demand_source_audit.csv --json
+```
+
+The audit records source metadata only. It keeps major portals such as Kaidee,
+ENNXO, PropertyHub, RentHub, LivingInsider, Zmyhome, Meezub, DotProperty,
+Baania, and Hipflat visible, but marks their sale/rent pages as
+`exclude_demand` because they publish supply listings rather than first-person
+buyer/renter requests. DDproperty remains blocked. Reddit and ASEANN remain
+blocked until an approved API/export path is available. Facebook public groups
+are `manual_export_only` and must use the existing user-selected public export
+flow; this command never crawls them.
+
+The row shape is versioned in
+[`contracts/property-capture.v1.json`](contracts/property-capture.v1.json).
+Validate a persisted social capture without printing contact values before
+lake ingest:
+
+```bash
+python scripts/check_property_social_capture.py \
+  data/exported/property_social_leads.csv --json --require-governance
+```
+
+Run the complete social extraction and review flow locally with the synthetic
+fixture; this mode is offline and does not need an API key:
+
+```bash
+mkdir -p /tmp/property-social-fixture
+python scripts/scrape_property_social.py \
+  --fixture tests/fixtures/property_social_results.json \
+  --limit 20 --output-dir /tmp/property-social-fixture
+python scripts/check_property_social_capture.py \
+  /tmp/property-social-fixture/property_social_leads.csv --json
+```
+
+Fixture rows are synthetic examples for parser and workflow checks. They do
+not prove live source access or permit enabling the scheduled collector.
+
+### Owner / co-agent capture from a browser export
+
+The repository now has a manual, offline bridge for the sources that publish
+explicit owner or cooperation wording.  It accepts a CSV/JSON export from the
+included Chrome extension or another browser exporter and keeps only rows
+whose visible text contains an explicit owner/co-agent signal.  The current
+allowlist includes `zmyhome.com`, `meezub.com`, `ennxo.com`,
+`livinginsider.com`, the configured property portals, and public URLs on
+Facebook, Instagram, TikTok, and LINE.  A URL is never fetched by the
+importer; unsupported, non-HTTPS, or look-alike hosts are quarantined.
+DDproperty remains blocked by its source terms and is not accepted by this
+manual importer.
+
+To use the included extension, open the `chrome-extension/` directory in
+`chrome://extensions` with **Developer mode → Load unpacked**.  On a public
+listing or public search page that you opened yourself, click **Capture public
+property lead**, check the visible evidence, save the row, then click
+**Export CSV for importer**.  The extension stores rows locally in Chrome and
+does not call a backend.  It is a capture aid, not a social crawler: do not
+use it on private groups, do not bypass a login or access control, and do not
+export browser history or cookies.
+
+Import the downloaded file with the following command:
+
+```bash
+python scripts/import_property_leads.py \
+  --input ~/Downloads/property_owner_coagent_export.csv \
+  --output-dir data/exported
+```
+
+The command writes `property_owner_coagent_leads.csv`, an append-only history,
+a redacted quarantine report, a checksum manifest, and a local copy of the
+input bytes.  Rows start with `review_decision=pending` and
+`outreach_status=not_contacted`; no message is sent.  Use
+`--include-unqualified` only when you intentionally want a wider manual
+review queue.  For a completely offline smoke test:
+
+```bash
+python scripts/import_property_leads.py \
+  --input tests/fixtures/property_owner_coagent_export.csv \
+  --output-dir /tmp/property-owner-coagent-sample
+python scripts/check_property_capture.py \
+  /tmp/property-owner-coagent-sample/property_owner_coagent_leads.csv --json
+```
+
+The fixture is synthetic.  Live owner/co-agent evidence must come from the
+public page or export the reviewer actually inspected, and source terms,
+privacy purpose, retention, and contact approval still need a human decision
+before any CRM or outreach handoff.
+
+### Facebook Group post capture (free, user-selected)
+
+The extension also has **Capture Facebook Group posts**.  Open the Group in a
+Chrome tab you are allowed to use, load the extension, click the button, and
+select only the rendered posts that have a permalink.  It reads the current
+DOM only; it does not scroll automatically, call Facebook APIs, open another
+post, read cookies, or send a request.  Confirm the Group visibility in the
+popup before saving.  The current pass intentionally captures the posts
+already rendered on screen; scroll yourself and use the popup's **Capture next
+rendered page** button for another page of results.
+
+Export with **Export Facebook Group CSV**, then run the offline importer:
+
+```bash
+python scripts/import_facebook_group_posts.py \
+  --input ~/Downloads/facebook_group_posts_export.csv \
+  --output-dir data/exported
+python scripts/check_facebook_group_capture.py \
+  data/exported/facebook_group_posts.csv --json
+```
+
+If you only want the posts in the current draft, use **Export current capture
+CSV** before saving.  It downloads `facebook_group_current_capture.csv` and
+does not clear or add to the saved-posts store.  **Export Facebook Group CSV**
+continues to export the posts already saved in the extension.
+
+The popup keeps the capture list while it is open and also stores a bounded
+local draft (up to 500 posts, expiring after 24 hours), because Chrome may close
+a popup when you return to the tab to scroll.  Reopen the popup and click
+**Capture next rendered page**; the next batch is merged by canonical
+`post_url` and the better text/metadata copy wins.  Click **Clear capture draft**
+when starting over.  This avoids having to save each viewport separately while
+still keeping the capture bounded to the posts visible in the tab.
+
+Run the synthetic smoke before using a real export.  It makes no network
+request and contains only fake values:
+
+```bash
+python scripts/import_facebook_group_posts.py \
+  --input tests/fixtures/facebook_group_posts_export.csv \
+  --output-dir /tmp/facebook-group-fixture
+python scripts/check_facebook_group_capture.py \
+  /tmp/facebook-group-fixture/facebook_group_posts.csv --json
+```
+
+The validator reports accepted row count, visibility counts, incomplete text,
+duplicate URLs/IDs, candidate count, and pending-review count.  Use
+`--require-complete` when a downstream step must reject any post whose visible
+text still contains a “See more” boundary.  Warnings never approve outreach;
+rows still start at `review_decision=pending` and `outreach_status=not_contacted`.
+
+Review selected rows after checking the original Group tab.  The command only
+records a decision and keeps outreach locked:
+
+```bash
+python scripts/review_facebook_group_posts.py \
+  --input data/exported/facebook_group_posts.csv \
+  --rows 1,3 --decision approved --reviewer-id owner-1 \
+  --output data/exported/facebook_group_posts_reviewed.csv
+python scripts/check_facebook_group_capture.py \
+  data/exported/facebook_group_posts_reviewed.csv --json
+```
+
+The row contract is versioned in
+[`contracts/facebook-group-post.v1.json`](contracts/facebook-group-post.v1.json).
+The importer canonicalises Facebook Group/post URLs, removes tracking query
+parameters, deduplicates posts, extracts explicit owner/co-agent signals from
+the supplied post text, and starts every row at `review_decision=pending` and
+`outreach_status=not_contacted`.  Public rows remain available for review even
+when they have no owner signal; use `--candidates-only` when you want a strict
+owner/co-agent queue.  Private or `unknown` rows are quarantined by default.
+To process a row from a group you are authorised to use, pass both an explicit
+gate and governance references:
+
+```bash
+python scripts/import_facebook_group_posts.py \
+  --input ~/Downloads/facebook_group_posts_export.csv \
+  --allow-private --allow-unknown \
+  --retention-until 2026-12-31T00:00:00Z \
+  --terms-basis-ref group-owner-approved-2026-09-14 \
+  --output-dir data/exported
+```
+
+This does not bypass a login or make private content public.  The output is a
+review queue, not a CRM write or outreach trigger.  A synthetic no-network
+smoke test is available at
+`tests/fixtures/facebook_group_posts_export.csv`; it does not prove live
+Facebook access.
+
+### Background capture without the extension (opt-in)
+
+Use `scripts/scrape_facebook_group_background.py` when you want a local
+Playwright process instead of the popup.  It opens only the Group URLs in a
+local text/JSON file, reads rendered `[role="article"]` nodes, performs a
+bounded number of manual-equivalent scroll rounds, and writes the same raw CSV
+shape with `capture_method=playwright_visible_tab`.  It is not scheduled by
+`setup_cron.sh`.
+
+Create a dedicated browser profile outside the repository.  The first command
+opens a headed browser so you can log in or complete a checkpoint yourself;
+the runner never exports or prints cookies:
+
+If Debian/Ubuntu reports that `ensurepip` is unavailable, install the matching
+venv package once, then recreate the project environment:
+
+```bash
+sudo apt update
+sudo apt install python3.14-venv
+python3 -m venv --clear .venv
+.venv/bin/python -m pip install playwright
+.venv/bin/python -m playwright install-deps chromium
+```
+
+The shorter install above is sufficient for this runner; install the full
+`requirements.txt` only when using the other scrapers in this repository.
+
+```bash
+.venv/bin/playwright install chromium
+.venv/bin/python scripts/scrape_facebook_group_background.py \
+  --profile-dir ~/.local/share/solo-empire/facebook-playwright \
+  --login-only --headed
+```
+
+Then create a local URL list and run a bounded headless capture:
+
+```text
+# /tmp/facebook-groups.txt
+https://facebook.com/groups/your-authorised-group
+```
+
+```bash
+.venv/bin/python scripts/scrape_facebook_group_background.py \
+  --groups-file /tmp/facebook-groups.txt \
+  --profile-dir ~/.local/share/solo-empire/facebook-playwright \
+  --output /tmp/facebook-group-background.csv \
+  --rounds 3 --pause-ms 1500 --visibility public
+```
+
+Before using a real Group, run the browser path against the synthetic fixture;
+the `--fixture` option serves the document locally, aborts other intercepted
+page requests, and never navigates to Facebook:
+
+```bash
+.venv/bin/python scripts/scrape_facebook_group_background.py \
+  --group-url https://facebook.com/groups/demo \
+  --profile-dir /tmp/facebook-background-fixture-profile \
+  --fixture tests/fixtures/facebook_group_background.html \
+  --output /tmp/facebook-group-background-fixture.csv \
+  --rounds 1 --visibility public
+```
+
+The optional user-level systemd templates in
+[`ops/systemd/`](ops/systemd/) run the same bounded command every six hours.
+They are examples only: copy and edit them yourself after the one-time
+headed login and a successful fixture/live dry run.  The repository does not
+install this timer automatically.
+
+The default `--visibility auto` fails closed when the page does not expose
+explicit public/private wording.  After visually confirming that every Group
+in the file is public, `--visibility public` records that operator label.  If
+the Groups have mixed or unclear visibility, use `--allow-unknown`; the
+importer still quarantines those rows unless its explicit governance gate is
+supplied.  A private Group additionally requires
+`--allow-private`, `--retention-until`, and `--terms-basis-ref`, and those same
+values must be passed to the importer.  The browser profile is an
+authentication boundary: keep it outside Git, never use another person's
+profile, and do not run this against a Group you are not authorised to use.
+
+Record that human decision locally after checking the source page.  The review
+command uses one-based data row numbers (the header is not counted), refuses to
+edit a row that was already reviewed, and keeps `outreach_status=not_contacted`:
+
+```bash
+python scripts/review_property_leads.py \
+  --input data/exported/property_owner_coagent_leads.csv \
+  --rows 1,3-4 --decision approved --reviewer-id owner-1 \
+  --output data/exported/property_owner_coagent_leads_reviewed.csv
+python scripts/check_property_capture.py \
+  data/exported/property_owner_coagent_leads_reviewed.csv --json
+```
+
+Use `--list-pending` to print only row numbers and status counts, or
+`--all-pending` to apply one decision to every pending row.  Each write also
+appends `property_owner_coagent_review_history.csv` with reviewer metadata and
+URL/input hashes; it never copies contact values into the audit file.  An
+approved review is evidence for a later, separately authorized outreach step,
+not an automatic message permission.
+
+The TG Condo adapter is the first live no-key RSS property source in this lane. It
+reads only the site's public condo-rent RSS endpoint (no search-page crawl) and
+writes `tgcondo_condo_rent_raw.xml`, `tgcondo_condo_rent.csv`, and
+`tgcondo_condo_rent_history.csv`. Run a bounded live sample outside the repo's
+runtime data directory:
+
+```bash
+mkdir -p /tmp/tgcondo-live-sample
+python scripts/scrape_tgcondo_rss.py \
+  --limit 5 --output-dir /tmp/tgcondo-live-sample
+```
+
+The feed contains listing metadata and usually no owner/co-agent signal, so
+those fields remain `unknown` unless the publisher states them explicitly.
+The scheduled `tgcondo_condo_rent` job stays disabled while source terms,
+raw-result retention, and contact-data handling are reviewed. An optional
+contact sample is capped at five public listing pages and requires all three
+governance variables (`TGCONDO_CONTACT_STORAGE_APPROVED=1`,
+`TGCONDO_RETENTION_UNTIL`, and `TGCONDO_TERMS_BASIS_REF`); it reads visible
+agent-card text only and never submits a contact form:
+
+```bash
+TGCONDO_CONTACT_STORAGE_APPROVED=1 \
+TGCONDO_RETENTION_UNTIL=approved-deletion-deadline \
+TGCONDO_TERMS_BASIS_REF=internal-source-review \
+python scripts/scrape_tgcondo_rss.py --include-agent-contact --max-contacts 5 \
+  --limit 5 --output-dir /tmp/tgcondo-contact-sample
+```
 
 The crypto adapter writes the validated raw response to
 `data/exported/crypto_prices_raw.json` and the capture projections to

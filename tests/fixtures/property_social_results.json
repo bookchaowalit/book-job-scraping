@@ -1,0 +1,26 @@
+[
+  {
+    "platform": "facebook",
+    "title": "ตัวอย่างประกาศคอนโด เจ้าของขายเอง รับ co-agent",
+    "url": "https://facebook.com/example/property-1",
+    "description": "ติดต่อที่หน้าโพสต์สำหรับข้อมูลเพิ่มเติม"
+  },
+  {
+    "platform": "instagram",
+    "title": "ตัวอย่างบ้านสำหรับ co-agent",
+    "url": "https://instagram.com/example.property/",
+    "description": "นายหน้า รับ co-agent อีเมล demo@example.invalid"
+  },
+  {
+    "platform": "tiktok",
+    "title": "ตัวอย่างคอนโดกรุงเทพ",
+    "url": "https://tiktok.com/@example/property-3",
+    "description": "เจ้าของขายเอง รับ co-agent"
+  },
+  {
+    "platform": "line",
+    "title": "ตัวอย่างประกาศ LINE",
+    "url": "https://line.me/R/ti/p/@example",
+    "description": "ยินดีรับนายหน้า ติดต่อ LINE: @example"
+  }
+]

@@ -27,9 +27,9 @@
       color: #f8fafc;
     }
     .header .badge {
-      background: #3b82f6;
+      background: #1d4ed8;
       color: white;
-      font-size: 10px;
+      font-size: 11px;
       padding: 2px 6px;
       border-radius: 10px;
     }
@@ -94,20 +94,104 @@
       margin-top: 8px;
     }
     .btn-primary {
-      background: #3b82f6;
+      background: #1d4ed8;
       color: white;
     }
-    .btn-primary:hover { background: #2563eb; }
+    .btn-primary:hover { background: #1e40af; }
     .btn-primary:disabled {
       background: #475569;
       cursor: not-allowed;
     }
     .btn-secondary {
       background: #1e293b;
-      color: #94a3b8;
+      color: #cbd5e1;
       border: 1px solid #334155;
     }
     .btn-secondary:hover { background: #334155; }
+    .btn-property {
+      background: #5b21b6;
+      color: white;
+    }
+    .btn-property:hover { background: #4c1d95; }
+    .btn-facebook-group {
+      background: #166534;
+      color: white;
+    }
+    .btn-facebook-group:hover { background: #14532d; }
+    .btn-facebook-group-next {
+      background: #14532d;
+      color: #dcfce7;
+      border: 1px solid #166534;
+    }
+    .btn-facebook-group-next:hover { background: #166534; }
+    .property-panel {
+      display: none;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid #334155;
+    }
+    .property-note {
+      font-size: 13px;
+      line-height: 1.4;
+      color: #fbbf24;
+      background: #422006;
+      border: 1px solid #92400e;
+      border-radius: 6px;
+      padding: 8px;
+      margin-bottom: 10px;
+    }
+    .facebook-group-panel {
+      display: none;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid #334155;
+    }
+    .facebook-group-note {
+      font-size: 13px;
+      line-height: 1.4;
+      color: #fbbf24;
+      background: #422006;
+      border: 1px solid #92400e;
+      border-radius: 6px;
+      padding: 8px;
+      margin-bottom: 10px;
+    }
+    .group-post-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 220px;
+      overflow-y: auto;
+      margin-bottom: 8px;
+    }
+    .group-post {
+      display: grid;
+      grid-template-columns: 20px 1fr;
+      gap: 6px;
+      padding: 8px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 6px;
+    }
+    .group-post input { width: auto; margin-top: 3px; }
+    .group-post-meta {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-bottom: 3px;
+    }
+    .group-post-text {
+      font-size: 13px;
+      line-height: 1.35;
+      color: #e2e8f0;
+      word-break: break-word;
+    }
+    .group-post-empty {
+      font-size: 12px;
+      color: #94a3b8;
+      padding: 8px;
+      background: #1e293b;
+      border-radius: 6px;
+    }
     .success-msg {
       background: #052e16;
       border: 1px solid #22c55e;
@@ -135,23 +219,100 @@
     .stat .num {
       font-size: 18px;
       font-weight: 700;
-      color: #3b82f6;
+      color: #60a5fa;
     }
     .stat .label {
-      font-size: 10px;
-      color: #64748b;
+      font-size: 12px;
+      color: #94a3b8;
       margin-top: 2px;
     }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1>💼 Quick Job Saver</h1>
+    <h1>💼 Quick Saver</h1>
     <span class="badge">Pipeline</span>
   </div>
 
   <div id="jobStatus" class="status">
     <p>Detecting job from current page...</p>
+  </div>
+
+  <button id="propertyModeBtn" class="btn btn-property">🏠 Capture public property lead</button>
+
+  <button id="facebookGroupModeBtn" class="btn btn-facebook-group">👥 Capture Facebook Group posts</button>
+
+  <div id="propertyArea" class="property-panel">
+    <div class="property-note">
+      ใช้กับหน้าสาธารณะที่คุณเปิดเองเท่านั้น ระบบจะ export ข้อมูลที่เห็นบนแท็บ
+      เพื่อให้ Python importer ตรวจ owner/co-agent และให้มนุษย์ review ก่อนติดต่อ
+    </div>
+    <div id="propertyStatus" class="status">
+      <p>กดปุ่มเพื่ออ่านข้อมูลจากแท็บปัจจุบัน</p>
+    </div>
+    <div class="form-group">
+      <label>Property title</label>
+      <input type="text" id="propertyTitle" placeholder="ชื่อประกาศ">
+    </div>
+    <div class="form-group">
+      <label>Location</label>
+      <input type="text" id="propertyLocation" placeholder="เช่น อโศก กรุงเทพฯ">
+    </div>
+    <div class="form-group">
+      <label>Price (optional)</label>
+      <input type="text" id="propertyPrice" placeholder="เช่น ฿18,000/month">
+    </div>
+    <div class="form-group">
+      <label>Bedrooms (optional)</label>
+      <input type="text" id="propertyBedrooms" placeholder="เช่น 1">
+    </div>
+    <div class="form-group">
+      <label>Bathrooms (optional)</label>
+      <input type="text" id="propertyBathrooms" placeholder="เช่น 1">
+    </div>
+    <div class="form-group">
+      <label>Area sqm (optional)</label>
+      <input type="text" id="propertyAreaSqm" placeholder="เช่น 35">
+    </div>
+    <div class="form-group">
+      <label>Listing type (optional)</label>
+      <input type="text" id="propertyType" placeholder="เช่น condo_rent_bkk">
+    </div>
+    <div class="form-group">
+      <label>Visible text / owner-co-agent evidence</label>
+      <textarea id="propertyDescription" placeholder="คงข้อความประกาศที่เห็น รวมข้อความเจ้าของ/รับ co-agent และช่องทางติดต่อ"></textarea>
+    </div>
+    <button id="savePropertyBtn" class="btn btn-primary">💾 Save property row</button>
+    <button id="exportPropertiesBtn" class="btn btn-secondary">⬇️ Export CSV for importer</button>
+    <div id="propertySuccess" class="success-msg">✅ Property row saved locally</div>
+  </div>
+
+  <div id="facebookGroupArea" class="facebook-group-panel">
+    <div class="facebook-group-note">
+      อ่านเฉพาะโพสต์ที่แสดงอยู่บนแท็บ Facebook ปัจจุบัน ไม่มีการ scroll อัตโนมัติ,
+      เรียก API, อ่าน cookie หรือเปิดโพสต์อื่น หลังเลื่อนหน้าเองให้กด
+      <strong>Capture next rendered page</strong> เพื่อรวมโพสต์รอบถัดไป
+      ถ้าป๊อปอัปปิดตอนกลับไปเลื่อนหน้า ข้อมูลร่างจะเก็บไว้ในเครื่องจนกด
+      Clear capture ใช้กับกลุ่ม/ข้อมูลที่คุณมีสิทธิ์เก็บเท่านั้น
+    </div>
+    <div id="facebookGroupStatus" class="status">
+      <p>กดปุ่มเพื่ออ่านโพสต์ที่มองเห็น แล้วเลือกโพสต์ที่ต้องการบันทึก</p>
+    </div>
+    <div class="form-group">
+      <label for="facebookGroupVisibility">Visibility ที่ตรวจยืนยันแล้ว</label>
+      <select id="facebookGroupVisibility">
+        <option value="unknown">ยังไม่ยืนยัน (จะไม่รับเข้า importer)</option>
+        <option value="public">Public group</option>
+        <option value="private">Private group (ต้องมีสิทธิ์และ governance)</option>
+      </select>
+    </div>
+    <button id="captureNextFacebookGroupPageBtn" class="btn btn-facebook-group-next" type="button">↻ Capture next rendered page</button>
+    <div id="facebookGroupPosts" class="group-post-list" aria-live="polite"></div>
+    <button id="saveFacebookGroupPostsBtn" class="btn btn-primary" disabled>💾 Save selected group posts</button>
+    <button id="exportFacebookGroupCaptureBtn" class="btn btn-secondary" type="button">⬇️ Export current capture CSV</button>
+    <button id="exportFacebookGroupPostsBtn" class="btn btn-secondary">⬇️ Export Facebook Group CSV</button>
+    <button id="clearFacebookGroupCaptureBtn" class="btn btn-secondary" type="button">🧹 Clear capture draft</button>
+    <div id="facebookGroupSuccess" class="success-msg">✅ บันทึกโพสต์ไว้ในเครื่องแล้ว</div>
   </div>
 
   <div id="formArea">

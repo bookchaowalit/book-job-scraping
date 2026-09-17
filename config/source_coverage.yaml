@@ -1,5 +1,5 @@
 schema_version: book-job-scraping.source-coverage.v1
-updated: 2026-08-27
+updated: 2026-09-14
 
 # This registry describes how each business source is acquired. It is
 # intentionally separate from jobs.yaml so product coverage, implementation
@@ -198,6 +198,96 @@ sources:
     contract: property-capture
     owner_repository: book-property-scraping
     next_action: "Thai /เช่าคอนโด parser is ready, but live collection now hits a Cloudflare JS challenge (httpx, curl, and headless Chromium). Re-enable only after a scraper-client smoke returns Bangkok priced rows."
+
+  - job: ennxo_condo_sale
+    business: property
+    source: ENNXO public condo sale listings
+    url: "https://www.ennxo.com/condo/for-sale"
+    channel: scrape
+    engine: httpx
+    schedule: "0 9 * * *"
+    module: property.portal_scrapers
+    status: planned
+    priority: P1
+    business_value: high
+    contract: property-capture
+    owner_repository: book-property-scraping
+    next_action: "Source-specific HTML adapter and fixture smoke pass. Keep disabled until robots observation, source terms, public-contact storage basis, and retention are documented."
+
+  - job: propertyhub_condo_rent
+    business: property
+    source: PropertyHub public condo-rent listings
+    url: "https://propertyhub.in.th/เช่าคอนโด"
+    channel: scrape
+    engine: httpx
+    schedule: "0 10 * * *"
+    module: property.portal_scrapers
+    status: planned
+    priority: P1
+    business_value: high
+    contract: property-capture
+    owner_repository: book-property-scraping
+    next_action: "Source-specific HTML adapter and fixture smoke pass. Keep disabled until robots observation, source terms, public-contact storage basis, and retention are documented."
+
+  - job: livinginsider_condo_rent
+    business: property
+    source: LivingInsider public condo-rent listings
+    url: "https://www.livinginsider.com/condo-rent"
+    channel: scrape
+    engine: httpx
+    schedule: "0 11 * * *"
+    module: property.portal_scrapers
+    status: planned
+    priority: P1
+    business_value: high
+    contract: property-capture
+    owner_repository: book-property-scraping
+    next_action: "Source-specific HTML adapter and fixture smoke pass. Keep disabled until robots observation, source terms, public-contact storage basis, and retention are documented."
+
+  - job: zmyhome_condo_rent
+    business: property
+    source: ZmyHome public condo-rent listings
+    url: "https://zmyhome.com/rent/condo?maxPriceFilter=10000"
+    channel: scrape
+    engine: httpx
+    schedule: "0 12 * * *"
+    module: property.portal_scrapers
+    status: planned
+    priority: P1
+    business_value: high
+    contract: property-capture
+    owner_repository: book-property-scraping
+    next_action: "Source-specific HTML adapter and fixture smoke pass. Keep disabled until robots observation, source terms, public-contact storage basis, and retention are documented."
+
+  - job: tgcondo_condo_rent
+    business: property
+    source: "TG Condo official public condo-rent RSS"
+    url: "https://www.tgcondo.com/Property-Types/condo-for-rent?format=feed&type=rss"
+    channel: rss
+    engine: rss
+    schedule: "0 */6 * * *"
+    module: scripts.scrape_tgcondo_rss
+    status: planned
+    priority: P0
+    business_value: high
+    contract: property-capture
+    owner_repository: book-property-scraping
+    next_action: "Live RSS smoke is available without an API key; keep scheduling disabled until TG Condo terms, raw-result retention, and any public contact storage basis are documented. Owner/co-agent remains unknown unless explicitly published and human-reviewed."
+
+  - job: property_social_leads
+    business: property
+    source: "Publicly indexed Facebook, Instagram, TikTok, and LINE property pages"
+    url: "https://api.search.brave.com/res/v1/web/search"
+    channel: api
+    engine: httpx
+    schedule: "0 */6 * * *"
+    module: scripts.scrape_property_social
+    status: planned
+    priority: P0
+    business_value: high
+    contract: property-capture
+    owner_repository: book-property-scraping
+    next_action: "Obtain a Brave Search API plan with explicit result-storage rights, document platform terms/PDPA basis and retention, then run a bounded contact-quality smoke with human review. Never authenticate to or crawl private social content."
 
   - job: crypto_prices
     business: finance

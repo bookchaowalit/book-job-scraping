@@ -1,0 +1,150 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "property-demand.v1",
+    "schema_version": "property-demand.v1",
+    "title": "Public property seeker demand capture",
+    "description": "A review-only first-person property demand record from a permitted public HTML source.",
+    "type": "object",
+    "x-privacy-class": "public_source_review_only",
+    "x-human-review-required": true,
+    "required": [
+        "schema_version",
+        "lead_id",
+        "source_url",
+        "source_platform",
+        "source_channel",
+        "source_access_method",
+        "source_visibility",
+        "title",
+        "exact_demand_text",
+        "demand_signal",
+        "observed_at",
+        "posted_at",
+        "property_type",
+        "location",
+        "budget",
+        "timing",
+        "public_contact_path",
+        "contact_permission",
+        "confidence",
+        "review_status",
+        "next_action",
+        "retention_until",
+        "terms_basis_ref"
+    ],
+    "properties": {
+        "schema_version": {
+            "type": "string",
+            "const": "property-demand.v1"
+        },
+        "lead_id": {
+            "type": "string",
+            "pattern": "^pantip-[0-9a-f]{16}$"
+        },
+        "source_url": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://pantip\\.com/topic/[0-9]+$"
+        },
+        "source_platform": {
+            "type": "string",
+            "const": "pantip"
+        },
+        "source_channel": {
+            "type": "string",
+            "const": "public_forum"
+        },
+        "source_access_method": {
+            "type": "string",
+            "const": "httpx_public_html"
+        },
+        "source_visibility": {
+            "type": "string",
+            "const": "public"
+        },
+        "title": {
+            "type": "string",
+            "maxLength": 240
+        },
+        "exact_demand_text": {
+            "type": "string",
+            "maxLength": 10000
+        },
+        "demand_signal": {
+            "type": "string",
+            "maxLength": 80
+        },
+        "observed_at": {
+            "type": "string",
+            "format": "date-time"
+        },
+        "posted_at": {
+            "type": "string"
+        },
+        "property_type": {
+            "type": "string",
+            "enum": [
+                "condo",
+                "house",
+                "townhouse",
+                "apartment",
+                "room",
+                "land",
+                "unknown"
+            ]
+        },
+        "location": {
+            "type": "string",
+            "maxLength": 240
+        },
+        "budget": {
+            "type": "string",
+            "maxLength": 240
+        },
+        "timing": {
+            "type": "string",
+            "maxLength": 240
+        },
+        "public_contact_path": {
+            "type": "string",
+            "format": "uri"
+        },
+        "contact_permission": {
+            "type": "string",
+            "enum": [
+                "not_stated",
+                "public_reply_invited",
+                "explicit_contact_consent"
+            ]
+        },
+        "confidence": {
+            "type": "string",
+            "enum": [
+                "high",
+                "medium",
+                "low"
+            ]
+        },
+        "review_status": {
+            "type": "string",
+            "enum": [
+                "call_ready",
+                "permission_needed",
+                "needs_more_evidence",
+                "not_demand"
+            ]
+        },
+        "next_action": {
+            "type": "string",
+            "maxLength": 160
+        },
+        "retention_until": {
+            "type": "string"
+        },
+        "terms_basis_ref": {
+            "type": "string",
+            "maxLength": 240
+        }
+    },
+    "additionalProperties": false
+}

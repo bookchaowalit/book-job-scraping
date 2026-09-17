@@ -1,6 +1,6 @@
 # Release / Runbook (BD-039) — book-job-scraping
 
-**Date:** 2026-08-25
+**Date:** 2026-09-14
 **Tier:** A flagship  
 **Status:** local collection scheduler active; live application send/apply remains gated.
 Fill env values only in a private secrets store; never commit secrets.
@@ -27,6 +27,13 @@ For browser-backed scrapers, install the Playwright browser if needed:
 | `OPENROUTER_API_KEY` | No | Optional AI enrichment; health remains green when absent |
 | `TELEGRAM_*` | No | Optional health notification; never required for collection |
 | `FIRECRAWL_API_KEY` | For Firecrawl jobs | Resolve from the private secret store; never commit |
+| `BRAVE_SEARCH_API_KEY` | No while social job is disabled | Required only after an approved Brave Search plan is provisioned |
+| `BRAVE_SEARCH_STORAGE_APPROVED` | No while social job is disabled | Keep `0`; set `1` only after storage-rights, terms/PDPA, retention, and human-review approval |
+| `PROPERTY_SOCIAL_RETENTION_UNTIL` | No while social job is disabled | Set the approved deletion deadline before a governed capture |
+| `PROPERTY_SOCIAL_TERMS_BASIS_REF` | No while social job is disabled | Internal decision/terms reference; never store raw legal text in the capture |
+| `TGCONDO_CONTACT_STORAGE_APPROVED` | No for RSS-only capture | Keep `0`; set `1` only after public-contact storage and terms/PDPA review |
+| `TGCONDO_RETENTION_UNTIL` | No for RSS-only capture | Required with contact opt-in; approved deletion deadline |
+| `TGCONDO_TERMS_BASIS_REF` | No for RSS-only capture | Required with contact opt-in; internal source/terms decision reference |
 
 Use `.env.example` when present. **Do not** commit `.env`, tracker CSVs,
 browser profiles, or raw PII.
@@ -74,6 +81,245 @@ For `ddproperty_condos`, run the focused checks before enabling the schedule:
 The adapter may fall back to bounded search when DDproperty rejects direct
 requests. Treat zero priced rows as a blocked smoke result; do not enable the
 job until the snapshot contains trustworthy rental prices.
+
+For `property_social_leads`, the collector uses only Brave's official Search
+API and public-index metadata for Facebook, Instagram, TikTok, and LINE. It
+does not authenticate to a social account, crawl a private page, scrape the
+search UI, or send outreach. Keep the job disabled until the subscribed plan
+explicitly permits result storage and the terms/PDPA purpose, retention,
+deletion, and human-review owner are recorded:
+
+```bash
+.venv/bin/python -m unittest discover -s tests -p 'test_property_social_leads.py' -v
+mkdir -p /tmp/property-social-fixture
+.venv/bin/python scripts/scrape_property_social.py \
+  --fixture tests/fixtures/property_social_results.json \
+  --limit 20 --output-dir /tmp/property-social-fixture
+.venv/bin/python scripts/check_property_social_capture.py \
+  /tmp/property-social-fixture/property_social_leads.csv --json
+BRAVE_SEARCH_STORAGE_APPROVED=1 .venv/bin/python scripts/scrape_property_social.py \
+  --platform facebook --limit 5 --dry-run
+```
+
+The `--fixture` run is a synthetic, offline smoke test for extraction,
+deduplication, review defaults, and the capture validator. It never contacts a
+social platform or search API and cannot authorize enabling the scheduled
+job. Use the Brave command only after the storage-rights and terms/PDPA gates
+above are recorded.
+
+For owner/co-agent research without a paid search API, use the manual browser
+export lane.  Load `chrome-extension/` as an unpacked extension, open a public
+listing or public search page yourself, click **Capture public property lead**,
+review the visible text, and export the CSV.  The extension only reads the
+active rendered tab; it does not log in, follow private links, read cookies, or
+send data to a server.  Do not use it for private groups or to bypass a source
+permission gate.
+
+Normalize and filter that export locally:
+
+```bash
+.venv/bin/python scripts/import_property_leads.py \
+  --input ~/Downloads/property_owner_coagent_export.csv \
+  --output-dir /tmp/property-owner-coagent
+```
+
+The importer accepts CSV or JSON, allows only HTTPS hosts recorded in its
+source allowlist (`zmyhome.com`, `meezub.com`, `ennxo.com`,
+`livinginsider.com`, the configured property portals, and public social URLs),
+strips tracking parameters, deduplicates by canonical URL and listing
+fingerprint, and quarantines invalid or non-owner/co-agent rows.  It writes a
+property.v1 snapshot, history, a redacted quarantine CSV, a checksum manifest,
+and a local raw-input copy.  Every accepted row remains pending human review;
+the importer never contacts a seller or co-agent.
+DDproperty is intentionally excluded because its current source terms do not
+permit automated scan/copy/index; keep that lane blocked unless a separate
+permission decision changes.
+
+For Facebook Groups, use the free rendered-tab bridge in the extension.  Open
+the Group yourself, click **Capture Facebook Group posts**, confirm the
+visibility, select posts with a permalink, and export **Facebook Group CSV**.
+The content script reads only `[role="article"]` nodes already rendered in the
+active tab; it does not scroll, call an API, read cookies, or follow links.
+Scroll another page manually and press **Capture next rendered page**.  Do not use this lane to enter
+a private Group or bypass an access control you are not authorised to use.
+
+Use **Export current capture CSV** when you want the current draft immediately
+without adding its rows to the saved-posts store.  Use **Save selected group
+posts** followed by **Export Facebook Group CSV** for the durable local saved
+set.  The current-capture export is named `facebook_group_current_capture.csv`.
+
+Normalise and validate the export locally:
+
+```bash
+.venv/bin/python scripts/import_facebook_group_posts.py \
+  --input ~/Downloads/facebook_group_posts_export.csv \
+  --output-dir /tmp/facebook-group
+.venv/bin/python scripts/check_facebook_group_capture.py \
+  /tmp/facebook-group/facebook_group_posts.csv --json
+```
+
+After checking each source tab, record a redacted review decision.  This does
+not approve outreach:
+
+```bash
+.venv/bin/python scripts/review_facebook_group_posts.py \
+  --input /tmp/facebook-group/facebook_group_posts.csv \
+  --all-pending --decision approved --reviewer-id owner-1 \
+  --output /tmp/facebook-group/facebook_group_posts_reviewed.csv
+```
+
+Chrome may close the extension popup when you return to the tab to scroll.  The
+extension therefore keeps a bounded local draft (up to 500 posts, expiring
+after 24 hours); reopen it and press **Capture next rendered page** after each
+viewport.  Captures merge by canonical `post_url`; duplicate posts are retained
+once and the more complete visible copy is kept.  Use **Clear capture draft** to
+start over.  The popup never scrolls, opens a post, calls an API, or reads
+cookies.
+
+Run this synthetic smoke before a real export.  It is offline and uses only
+fake fixture values:
+
+```bash
+.venv/bin/python scripts/import_facebook_group_posts.py \
+  --input tests/fixtures/facebook_group_posts_export.csv \
+  --output-dir /tmp/facebook-group-fixture
+.venv/bin/python scripts/check_facebook_group_capture.py \
+  /tmp/facebook-group-fixture/facebook_group_posts.csv --json
+```
+
+The validator's JSON `quality` block shows visibility, complete/incomplete text,
+duplicate URL/ID, candidate, and pending-review counts.  Add
+`--require-complete` for a strict downstream gate; it fails on any row marked
+`text_complete=false`.
+
+`facebook.group-post.v1` keeps the Group/post permalink, visible author/time,
+bounded text, visibility label, completeness flag, contact evidence, and
+hash-only quarantine.  Public rows are retained for search and review; use
+`--candidates-only` to discard posts without explicit owner/co-agent wording.
+Private or unknown rows fail closed unless the operator supplies the matching
+`--allow-private`/`--allow-unknown` gate plus `--retention-until` and
+`--terms-basis-ref`.  No row can advance to outreach from this importer.
+
+For a background run without the extension, use the dedicated Playwright
+profile runner.  Keep the profile outside the repository; it is an
+authentication boundary even though the script never reads or exports cookie
+values.  Seed it manually once, then run a bounded headless capture:
+
+On Debian/Ubuntu, install `python3.14-venv` if `python3 -m venv` says that
+`ensurepip` is unavailable, then recreate `.venv` with
+`python3 -m venv --clear .venv`.  The runner itself only needs Playwright;
+install the full requirements file when other scrapers need it.
+
+```bash
+sudo apt update
+sudo apt install python3.14-venv
+python3 -m venv --clear .venv
+.venv/bin/python -m pip install playwright
+.venv/bin/python -m playwright install-deps chromium
+.venv/bin/playwright install chromium
+.venv/bin/python scripts/scrape_facebook_group_background.py \
+  --profile-dir ~/.local/share/solo-empire/facebook-playwright \
+  --login-only --headed
+.venv/bin/python scripts/scrape_facebook_group_background.py \
+  --groups-file /tmp/facebook-groups.txt \
+  --profile-dir ~/.local/share/solo-empire/facebook-playwright \
+  --output /tmp/facebook-group-background.csv \
+  --rounds 3 --pause-ms 1500 --visibility public
+```
+
+Run the offline browser smoke before pointing the runner at a real Group.  The
+fixture is served locally by Playwright and all non-document requests are
+aborted, so this command does not contact Facebook:
+
+```bash
+.venv/bin/python scripts/scrape_facebook_group_background.py \
+  --group-url https://facebook.com/groups/demo \
+  --profile-dir /tmp/facebook-background-fixture-profile \
+  --fixture tests/fixtures/facebook_group_background.html \
+  --output /tmp/facebook-group-background-fixture.csv \
+  --rounds 1 --visibility public
+```
+
+If a user-level timer is appropriate after review, copy and edit the example
+units under [`ops/systemd/`](ops/systemd/).  They are intentionally not
+installed by `setup_cron.sh` or by this runner.
+
+The runner is not installed by `setup_cron.sh`; schedule it only after a
+separate source/terms decision.  It limits the run to 20 Groups, 10 rounds,
+500 posts, and a 500–10000 ms pause.  It skips pages whose Group identity does
+not match the requested URL, never follows post links, and exits without an
+output when no permitted posts were captured.  Use `--allow-unknown` only
+after checking the Group yourself, or use `--visibility public` when every
+listed Group has been checked as public.  Private captures require the same
+retention and terms-basis flags as the importer.
+
+Record a human decision after opening and checking each selected source page.
+Rows are numbered from 1 after the CSV header.  The command refuses a second
+decision on a reviewed row and leaves outreach locked:
+
+```bash
+.venv/bin/python scripts/review_property_leads.py \
+  --input /tmp/property-owner-coagent/property_owner_coagent_leads.csv \
+  --rows 1,3-4 --decision approved --reviewer-id owner-1 \
+  --output /tmp/property-owner-coagent/property_owner_coagent_leads_reviewed.csv
+.venv/bin/python scripts/check_property_capture.py \
+  /tmp/property-owner-coagent/property_owner_coagent_leads_reviewed.csv --json
+```
+
+`--list-pending` prints only redacted counts and row numbers.  Use
+`--all-pending` when the same decision applies to every remaining row.  Review
+events append to `property_owner_coagent_review_history.csv` with the reviewer,
+timestamp, and URL/input hashes; contact values are excluded.  `approved` does
+not set `approved_to_contact`; any outreach requires a separate explicit
+approval and a compatible source-terms/PDPA decision.
+
+Run the synthetic, no-network check before using a real export:
+
+```bash
+.venv/bin/python -m unittest tests/test_property_owner_coagent_import.py -v
+.venv/bin/python scripts/import_property_leads.py \
+  --input tests/fixtures/property_owner_coagent_export.csv \
+  --output-dir /tmp/property-owner-coagent-fixture
+.venv/bin/python scripts/check_property_capture.py \
+  /tmp/property-owner-coagent-fixture/property_owner_coagent_leads.csv --json
+```
+
+For `tgcondo_condo_rent`, use the public RSS feed for a live, no-key listing
+sample. The adapter stores the bounded RSS response and CSV projection, keeps
+the scheduler disabled pending source-terms/retention review, and does not
+infer an owner or co-agent from a listing title:
+
+```bash
+.venv/bin/python -m unittest discover -s tests -p 'test_tgcondo_rss.py' -v
+mkdir -p /tmp/tgcondo-live-sample
+.venv/bin/python scripts/scrape_tgcondo_rss.py \
+  --limit 5 --output-dir /tmp/tgcondo-live-sample
+```
+
+Contact enrichment is opt-in, capped at five public listing pages, and held
+unless `TGCONDO_CONTACT_STORAGE_APPROVED=1` plus the approved retention and
+terms-reference variables are present. It reads visible agent-card fields and
+never submits TG Condo's contact form or sends outreach. Review every contact
+row before any follow-up; rows start with `review_decision=pending` and
+`outreach_status=not_contacted`.
+
+Use the smoke only after the storage-rights approval. Review every returned
+row for an allowlisted HTTPS source URL, correct platform, explicit contact
+evidence, and `contact_role`/`co_agent_status` agreement. For a persisted
+capture, run the redacted validator before lake ingest:
+
+```bash
+.venv/bin/python scripts/check_property_social_capture.py \
+  data/exported/property_social_leads.csv --json --require-governance
+```
+
+Do not enable the schedule from a count-only result; require a human sign-off
+on the sampled rows, record `review_decision`, `reviewer_id`, and
+`reviewed_at`, then change `config/jobs.yaml` and the coverage registry
+together. `outreach_status` may become `approved_to_contact` or `contacted`
+only after `review_decision=approved`. Set the gate back to `0` and leave the
+job disabled if the API fails, returns malformed data, or the sample contains
+a non-public/private source.
 
 For `crypto_prices`, the scheduler uses the bounded public CoinGecko API
 capture. Verify the adapter contract and output before changing its coin or

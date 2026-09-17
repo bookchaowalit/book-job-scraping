@@ -4,15 +4,14 @@ Scrape property listings from DDproperty via free httpx+BS4.
 Tracks new listings, price changes, and investment opportunities.
 
 Outputs:
-    - domains/money/assets/book-real-estate/data/property_listings.csv (latest)
-    - domains/money/assets/book-real-estate/data/property_history.csv (appended)
+    - data/exported/property_listings.csv (latest)
+    - data/exported/property_history.csv (appended)
     - Console alerts for price drops >10%
 
 Usage:
-    python3 scripts (book-job-scraping)/scripts/scrape_property_listings.py
-    python3 scripts (book-job-scraping)/scripts/scrape_property_listings.py --type condo --max-price 5000000
-    python3 scripts (book-job-scraping)/scripts/scrape_property_listings.py --area bangkok --bedrooms 1,2
-    python3 scripts (book-job-scraping)/scripts/scrape_property_listings.py --alert-drop-pct 10
+    python3 scripts/scrape_property_listings.py
+    python3 scripts/scrape_property_listings.py --type condo --max-price 5000000
+    python3 scripts/scrape_property_listings.py --alert-drop-pct 10
 """
 
 import argparse
@@ -21,7 +20,7 @@ import json
 import os
 import re
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 try:
@@ -49,7 +48,12 @@ except ImportError:
     from bs4 import BeautifulSoup
 
 ROOT = Path(__file__).resolve().parents[1]  # book-job-scraping repo root
-OUTPUT_DIR = ROOT / "domains" / "book-real-estate" / "data"
+OUTPUT_DIR = ROOT / "data" / "exported"
+
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from property.lead_extraction import CONTACT_FIELDS, enrich_listing  # noqa: E402
+from property.listing_config import build_page_url, property_source_platform, resolve_listing_type  # noqa: E402
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0"}
 
@@ -78,6 +82,15 @@ DDPROPERTY_SEARCH = {
 
 DEFAULT_TYPE = "condo_sale_bkk"
 DEFAULT_MAX_PAGES = 3
+
+# These fields are intentionally explicit: a listing is not a contactable lead
+# until a human can see the public source and the extracted signal.
+PROPERTY_FIELDNAMES = [
+    "scraped_at", "title", "type", "url", "price_raw", "price",
+    "bedrooms", "bathrooms", "area_sqm", "location", "description",
+    "source_channel", "source_platform",
+    *CONTACT_FIELDS,
+]
 
 
 def _is_valid_url(url: str) -> bool:
@@ -328,85 +341,113 @@ def parse_price(price_str: str) -> float:
     return 0.0
 
 
-def extract_listings(markdown: str, listing_type: str) -> list:
-    """Extract property listings from markdown content."""
-    listings = []
+def _looks_like_listing_title(line: str) -> bool:
+    """Keep contact/attribute lines inside a listing instead of new titles."""
 
-    # Split by listing patterns (DDproperty uses various separators)
-    lines = markdown.split('\n')
+    if line.startswith("#"):
+        return True
+    if not 20 < len(line) < 200 or line.startswith("http"):
+        return False
+    return not re.search(
+        r"฿|ล้าน|บาท|\b(?:bed|bath|sqm|sq\.?m|price|tel|phone|line|email|"
+        r"co\s*[- ]?agent|co\s*[- ]?broker)\b|"
+        r"(?:ห้องนอน|ห้องน้ำ|ราคา|โทร|ไลน์|อีเมล|เจ้าของ|นายหน้า|เอเจ(?:น(?:ต์|ท์)?|้น))|"
+        r"@|https?://|(?:\+66|0)(?:[\s().-]*\d){8,10}",
+        line,
+        flags=re.IGNORECASE,
+    )
+
+
+def extract_listings(
+    markdown: str,
+    listing_type: str,
+    source_url: str = "",
+) -> list:
+    """Extract priced listings and public contact signals from page text."""
+
+    listings = []
     current_listing = {}
 
-    for line in lines:
-        line = line.strip()
+    def finish_current() -> None:
+        if not current_listing.get("title") or not current_listing.get("price"):
+            return
+        raw_text = "\n".join(current_listing.pop("_raw_text", []))
+        current_listing.update(
+            enrich_listing(
+                current_listing,
+                text=raw_text,
+                source_url=current_listing.get("url") or source_url,
+            )
+        )
+        current_listing.setdefault("source_channel", "listing")
+        current_listing.setdefault("source_platform", "ddproperty")
+        listings.append(dict(current_listing))
+
+    for raw_line in markdown.split("\n"):
+        line = raw_line.strip()
         if not line:
             continue
 
-        # Price detection
-        price_match = re.search(r'(฿[\d,]+|[\d,.]+\s*ล้าน)', line)
-        if price_match and current_listing.get('title'):
-            current_listing['price_raw'] = price_match.group(1)
-            current_listing['price'] = parse_price(price_match.group(1))
+        is_title = _looks_like_listing_title(line)
+        if is_title and current_listing.get("title"):
+            finish_current()
+            current_listing = {}
+        if current_listing:
+            current_listing.setdefault("_raw_text", []).append(line)
 
-        # Title/heading detection
-        if line.startswith('#') or (len(line) > 20 and len(line) < 200 and not line.startswith('http')):
-            if current_listing.get('title') and current_listing.get('price'):
-                listings.append(current_listing)
+        price_match = re.search(r"(฿[\d,]+|[\d,.]+\s*ล้าน)", line)
+        if price_match and current_listing.get("title"):
+            current_listing["price_raw"] = price_match.group(1)
+            current_listing["price"] = parse_price(price_match.group(1))
+
+        if is_title:
             current_listing = {
-                'title': line.lstrip('#').strip(),
-                'type': listing_type,
-                'url': '',
-                'price_raw': '',
-                'price': 0,
-                'bedrooms': '',
-                'bathrooms': '',
-                'area_sqm': '',
-                'location': '',
-                'description': '',
+                "title": line.lstrip("#").strip(),
+                "type": listing_type,
+                "url": "",
+                "price_raw": "",
+                "price": 0,
+                "bedrooms": "",
+                "bathrooms": "",
+                "area_sqm": "",
+                "location": "",
+                "description": "",
+                "_raw_text": [line],
             }
 
-        # Bedroom/bathroom detection
-        bed_match = re.search(r'(\d+)\s*(bed|ห้องนอน)', line, re.IGNORECASE)
+        bed_match = re.search(r"(\d+)\s*(bed|ห้องนอน)", line, re.IGNORECASE)
         if bed_match:
-            current_listing['bedrooms'] = bed_match.group(1)
+            current_listing["bedrooms"] = bed_match.group(1)
 
-        bath_match = re.search(r'(\d+)\s*(bath|ห้องน้ำ)', line, re.IGNORECASE)
+        bath_match = re.search(r"(\d+)\s*(bath|ห้องน้ำ)", line, re.IGNORECASE)
         if bath_match:
-            current_listing['bathrooms'] = bath_match.group(1)
+            current_listing["bathrooms"] = bath_match.group(1)
 
-        # Area detection
-        area_match = re.search(r'([\d,.]+)\s*(sqm|sq\.?m|ตร\.?ม)', line, re.IGNORECASE)
+        area_match = re.search(r"([\d,.]+)\s*(sqm|sq\.?m|ตร\.?ม)", line, re.IGNORECASE)
         if area_match:
-            current_listing['area_sqm'] = area_match.group(1)
+            current_listing["area_sqm"] = area_match.group(1)
 
-        # URL detection
-        url_match = re.search(r'https?://\S+ddproperty\S+', line)
+        url_match = re.search(r"https?://\S+ddproperty\S+", line)
         if url_match:
-            current_listing['url'] = url_match.group(0)
+            current_listing["url"] = url_match.group(0).rstrip(".,;)")
 
-    # Don't forget last listing
-    if current_listing.get('title') and current_listing.get('price'):
-        listings.append(current_listing)
-
+    finish_current()
     return listings
 
 
 def save_listings(listings: list, output_dir: Path):
     """Save listings to CSV."""
     output_dir.mkdir(parents=True, exist_ok=True)
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now = datetime.now(timezone.utc).isoformat()
 
     listings_file = output_dir / "property_listings.csv"
-    fieldnames = [
-        "scraped_at", "title", "type", "url", "price_raw", "price",
-        "bedrooms", "bathrooms", "area_sqm", "location", "description"
-    ]
 
     with open(listings_file, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer = csv.DictWriter(f, fieldnames=PROPERTY_FIELDNAMES, extrasaction="ignore")
         writer.writeheader()
         for listing in listings:
             listing["scraped_at"] = now
-            writer.writerow({k: listing.get(k, "") for k in fieldnames})
+            writer.writerow({k: listing.get(k, "") for k in PROPERTY_FIELDNAMES})
 
     print(f"  Saved {len(listings)} listings to {listings_file}")
 
@@ -414,7 +455,7 @@ def save_listings(listings: list, output_dir: Path):
 def append_history(listings: list, output_dir: Path):
     """Append to history for price tracking."""
     history_file = output_dir / "property_history.csv"
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now = datetime.now(timezone.utc).isoformat()
     file_exists = history_file.exists()
 
     fieldnames = ["date", "title", "type", "price", "bedrooms", "area_sqm", "location"]
@@ -491,10 +532,85 @@ def print_summary(listings: list, drops: list = None):
             print(f"    -{drop['price_drop_pct']}% | {drop.get('title', '')[:40]} | ฿{drop.get('old_price', 0):,.0f} → ฿{drop.get('price', 0):,.0f}")
 
 
+def _source_platform(url: str) -> str:
+    return property_source_platform(url) or "search"
+
+
+def _fallback_listings(listing_type: str, search_results: list[dict]) -> list[dict]:
+    """Turn indexed snippets into explicitly degraded, review-only rows."""
+
+    listings = []
+    for result in search_results:
+        result_url = str(result.get("url") or "")
+        if not property_source_platform(result_url):
+            continue
+        raw_title = str(result.get("title") or "")
+        clean_title = _clean_property_title(raw_title, result_url)
+        if not clean_title:
+            continue
+        description = str(result.get("description") or result.get("snippet") or "")
+        combined_text = f"{raw_title} {description}"
+        price_raw = ""
+        price = 0
+        price_match = re.search(r"(฿[\d,]+|[\d,.]+\s*ล้าน)", combined_text)
+        if price_match:
+            price_raw = price_match.group(1)
+            price = parse_price(price_raw)
+        listing = {
+            "title": clean_title,
+            "type": listing_type,
+            "url": result_url,
+            "description": description,
+            "price_raw": price_raw,
+            "price": price,
+            "bedrooms": "",
+            "bathrooms": "",
+            "area_sqm": "",
+            "location": listing_type.split("_")[-1].title(),
+            "source_channel": "search",
+            "source_platform": _source_platform(result_url),
+        }
+        listings.append(enrich_listing(listing, combined_text, result_url))
+    return listings
+
+
+def _dedupe_listings(listings: list[dict]) -> list[dict]:
+    result = []
+    seen = set()
+    for listing in listings:
+        key = listing.get("url") or re.sub(r"\s+", " ", str(listing.get("title") or "")).strip().lower()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        result.append(listing)
+    return result
+
+
+def collect_listing_type(listing_type: str, url: str, max_pages: int = DEFAULT_MAX_PAGES) -> list[dict]:
+    """Collect one bounded listing lane, using search fallback only once."""
+
+    listings: list[dict] = []
+    for page in range(1, max(1, int(max_pages)) + 1):
+        page_url = build_page_url(url, page)
+        markdown = free_scrape_url(page_url)
+        if markdown and len(markdown) > 200:
+            page_listings = extract_listings(markdown, listing_type, source_url=page_url)
+        elif page == 1:
+            query = f"{listing_type.replace('_', ' ')} Thailand property listing"
+            page_listings = _fallback_listings(listing_type, google_search(query, limit=20))
+        else:
+            page_listings = []
+        listings.extend(page_listings)
+    return _dedupe_listings(listings)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Scrape property listings via free httpx+BS4")
-    parser.add_argument("--type", default=None, choices=list(DDPROPERTY_SEARCH.keys()),
-                        help=f"Listing type (default: scrape ALL types)")
+    parser.add_argument(
+        "--type",
+        default=None,
+        help="Listing type or scheduler alias (default: scrape ALL types)",
+    )
     parser.add_argument("--max-pages", type=int, default=DEFAULT_MAX_PAGES,
                         help=f"Max pages to scrape per type (default: {DEFAULT_MAX_PAGES})")
     parser.add_argument("--alert-drop-pct", type=float, default=10.0,
@@ -505,9 +621,14 @@ def main():
 
     output_dir = Path(args.output_dir)
 
-    # Determine which types to scrape
+    # Resolve scheduler shorthand and fail closed for unknown values.  A typo
+    # must never widen a run to every city and property type.
     if args.type:
-        types_to_scrape = {args.type: DDPROPERTY_SEARCH[args.type]}
+        try:
+            resolved_type = resolve_listing_type(args.type, set(DDPROPERTY_SEARCH))
+        except ValueError as exc:
+            parser.error(str(exc))
+        types_to_scrape = {resolved_type: DDPROPERTY_SEARCH[resolved_type]}
     else:
         types_to_scrape = DDPROPERTY_SEARCH
 
@@ -519,44 +640,7 @@ def main():
     for listing_type, url in types_to_scrape.items():
         print(f"\n  Scraping {listing_type}: {url}")
         try:
-            markdown = free_scrape_url(url)
-
-            if not markdown or len(markdown) < 200:
-                print(f"    Direct scrape failed/empty, using Brave search...")
-                search_query = f"ddproperty {listing_type.replace('_', ' ')} thailand"
-                search_results = google_search(search_query, limit=20)
-                listings = []
-                for sr in search_results:
-                    sr_url = sr.get("url", "")
-                    # Only keep property site URLs
-                    if 'ddproperty.com' in sr_url or 'propertyhub' in sr_url or 'dotproperty' in sr_url:
-                        # Clean title from breadcrumb garbage
-                        raw_title = sr.get("title", "")
-                        clean_title = _clean_property_title(raw_title, sr_url)
-                        if not clean_title:
-                            continue
-                        # Extract price from title + description
-                        combined_text = f"{raw_title} {sr.get('description', '')}"
-                        price_raw = ""
-                        price = 0
-                        price_match = re.search(r'(\u0e3f[\d,]+|[\d,.]+\s*\u0e25\u0e49\u0e32\u0e19)', combined_text)
-                        if price_match:
-                            price_raw = price_match.group(1)
-                            price = parse_price(price_raw)
-                        listings.append({
-                            "title": clean_title,
-                            "type": listing_type,
-                            "url": sr_url,
-                            "description": sr.get("description", ""),
-                            "price_raw": price_raw,
-                            "price": price,
-                            "bedrooms": "",
-                            "bathrooms": "",
-                            "area_sqm": "",
-                            "location": listing_type.split('_')[-1].title(),
-                        })
-            else:
-                listings = extract_listings(markdown, listing_type)
+            listings = collect_listing_type(listing_type, url, args.max_pages)
 
             print(f"    Extracted {len(listings)} listings")
             all_listings.extend(listings)
@@ -585,7 +669,7 @@ def main():
 class PropertyListingScraper:
     """Wrapper class for scheduler compatibility."""
     def __init__(self, type=None, max_pages=None, alert_drop_pct=10.0, **kwargs):
-        self.listing_type = type
+        self.listing_type = resolve_listing_type(type, set(DDPROPERTY_SEARCH)) if type else None
         self.max_pages = max_pages or 3
         self.alert_drop_pct = alert_drop_pct
 
@@ -598,30 +682,7 @@ class PropertyListingScraper:
         all_listings = []
         for listing_type, url in types_to_scrape.items():
             try:
-                markdown = free_scrape_url(url)
-                if markdown and len(markdown) > 200:
-                    listings = extract_listings(markdown, listing_type)
-                else:
-                    search_query = f"ddproperty {listing_type.replace('_', ' ')} thailand"
-                    search_results = google_search(search_query, limit=20)
-                    listings = []
-                    for sr in search_results:
-                        sr_url = sr.get('url', '')
-                        if 'ddproperty.com' in sr_url or 'propertyhub' in sr_url or 'dotproperty' in sr_url:
-                            raw_title = sr.get('title', '')
-                            clean_title = _clean_property_title(raw_title, sr_url)
-                            if clean_title:
-                                combined_text = f"{raw_title} {sr.get('description', '')}"
-                                price_raw = ''
-                                price = 0
-                                price_match = re.search(r'(\u0e3f[\d,]+|[\d,.]+\s*\u0e25\u0e49\u0e32\u0e19)', combined_text)
-                                if price_match:
-                                    price_raw = price_match.group(1)
-                                    price = parse_price(price_raw)
-                                listings.append({'title': clean_title, 'type': listing_type, 'url': sr_url,
-                                                 'description': sr.get('description', ''), 'price_raw': price_raw,
-                                                 'price': price, 'bedrooms': '', 'bathrooms': '', 'area_sqm': '',
-                                                 'location': listing_type.split('_')[-1].title()})
+                listings = collect_listing_type(listing_type, url, self.max_pages)
                 all_listings.extend(listings)
             except Exception as e:
                 print(f"  Error scraping {listing_type}: {e}")

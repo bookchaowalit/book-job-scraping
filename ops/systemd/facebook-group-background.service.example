@@ -1,0 +1,18 @@
+[Unit]
+Description=Solo Empire Facebook Group background capture (operator configured)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Edit the three repository paths below if this checkout lives elsewhere.
+WorkingDirectory=%h/bookall/solo-empire/projects/product/engineering/book-dev/github/bookchaowalit/book-apps/tools/book-job-scraping
+# Keep auto (fail-closed) until every Group's visibility is checked. If all
+# targets are confirmed public, this may be changed to --visibility public.
+ExecStart=/usr/bin/flock --nonblock --exclusive %h/.local/state/solo-empire/facebook-group-background.lock %h/bookall/solo-empire/projects/product/engineering/book-dev/github/bookchaowalit/book-apps/tools/book-job-scraping/.venv/bin/python %h/bookall/solo-empire/projects/product/engineering/book-dev/github/bookchaowalit/book-apps/tools/book-job-scraping/scripts/scrape_facebook_group_background.py --groups-file %h/.config/solo-empire/facebook-groups.txt --profile-dir %h/.local/share/solo-empire/facebook-playwright --output %h/.local/share/solo-empire/facebook-captures/facebook_group_background.csv --rounds 3 --pause-ms 1500 --visibility auto
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=%h/.local/share/solo-empire/facebook-playwright %h/.local/share/solo-empire/facebook-captures %h/.local/state/solo-empire
+UMask=0077
+TimeoutStartSec=30min

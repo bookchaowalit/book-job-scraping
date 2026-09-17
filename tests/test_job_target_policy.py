@@ -21,6 +21,7 @@ sys.path.insert(0, str(SCRIPTS))
 from filter_job_matches import JobMatchFilter, main as filter_matches  # noqa: E402
 from auto_promote_jobs import promote_jobs  # noqa: E402
 from classify_jobs import classify_country, classify_job_type  # noqa: E402
+from cron_scheduler import get_daily_commands  # noqa: E402
 from match_jobs import score_job as score_legacy_job  # noqa: E402
 from scrape_job_postings import fetch_peopleperhour  # noqa: E402
 from job_target_policy import (  # noqa: E402
@@ -440,9 +441,11 @@ class JobTargetPolicyTests(unittest.TestCase):
         self.assertEqual(jobs["job_match_filter"]["params"]["seed_min_score"], 5)
         self.assertEqual(jobs["job_match_filter"]["params"]["descriptions"], "data/job_descriptions.csv")
 
-        scheduler_source = (SCRIPTS / "cron_scheduler.py").read_text(encoding="utf-8")
-        self.assertIn("auto_seed_tracker.py'} --min-score 5 --send-telegram", scheduler_source)
-        self.assertNotIn("pipeline_runner.py'} --full --send-telegram", scheduler_source)
+        commands = {task["name"]: task["cmd"] for task in get_daily_commands()}
+        auto_seed_cmd = commands["auto_seed"]
+        self.assertIn("auto_seed_tracker.py", auto_seed_cmd[1])
+        self.assertEqual(auto_seed_cmd[-3:], ["--min-score", "5", "--send-telegram"])
+        self.assertNotIn("--send-telegram", commands["pipeline_full"])
 
     def test_scheduler_can_import_filter_as_package(self):
         module = importlib.import_module("scripts.filter_job_matches")

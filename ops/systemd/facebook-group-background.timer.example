@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Solo Empire Facebook Group background capture every six hours
+
+[Timer]
+OnCalendar=*-*-* 00,06,12,18:00:00
+Persistent=true
+RandomizedDelaySec=5min
+Unit=facebook-group-background.service
+
+[Install]
+WantedBy=timers.target
