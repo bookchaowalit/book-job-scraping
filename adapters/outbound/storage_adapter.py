@@ -4,11 +4,25 @@ File-based storage with JSON files organized by category.
 """
 import json
 import re
+import unicodedata
 from pathlib import Path
 from typing import List, Optional, Dict
 
 from core.atomic_io import write_json_atomic
 from core.models import ScrapedItem, JobListing, BusinessListing, ProductListing, NewsArticle
+from core.pipeline.cleaner import strip_invisible
+
+
+def _search_key(value) -> str:
+    """Fold text for substring search.
+
+    NFKC unifies full-width Latin and the two Thai sara-am spellings
+    (U+0E33 vs nikhahit + sara aa); zero-width characters are dropped and
+    whitespace collapsed so a scraped "Python\u200b  Dev" still matches
+    "python dev".
+    """
+    text = unicodedata.normalize("NFKC", str(value))
+    return re.sub(r"\s+", " ", strip_invisible(text)).strip().casefold()
 
 
 def _as_number(value) -> Optional[float]:
@@ -164,7 +178,8 @@ class StorageAdapter:
         for key, value in filters.items():
             if key.endswith("_contains"):
                 field = key[: -len("_contains")]
-                filtered = [i for i in filtered if value.lower() in str(getattr(i, field, "")).lower()]
+                needle = _search_key(value)
+                filtered = [i for i in filtered if needle in _search_key(getattr(i, field, ""))]
             elif key.endswith("_lte"):
                 field = key[: -len("_lte")]
                 filtered = [i for i in filtered if (n := _as_number(getattr(i, field, None))) is not None and n <= value]

@@ -116,3 +116,61 @@ class UtcEpochTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TextEdgeCaseTests(unittest.TestCase):
+    """Zero-width characters, Thai digits and "K" salaries in the cleaner."""
+
+    def test_zero_width_only_item_is_empty(self):
+        from core.pipeline.cleaner import DataCleaner
+
+        cleaner = DataCleaner()
+        self.assertTrue(cleaner._is_empty({"title": "​", "url": "﻿ "}))
+        self.assertEqual(
+            cleaner._normalize_string("​Python⁠ Dev﻿"), "Python Dev"
+        )
+
+    def test_salary_thousands_suffix_and_thai_digits(self):
+        from core.pipeline.cleaner import DataCleaner
+
+        cleaner = DataCleaner()
+        self.assertEqual(cleaner._normalize_salary("฿30K - ฿50K"), "30,000-50,000")
+        self.assertEqual(cleaner._normalize_salary("1.5k"), "1,500")
+        self.assertEqual(cleaner._normalize_salary("25,000 บาท"), "25,000")
+        self.assertEqual(cleaner._normalize_price("฿๑,๒๙๙"), "1299")
+
+    def test_dedup_ignores_invisible_width_and_spacing_differences(self):
+        from core.pipeline.deduplicator import Deduplicator
+
+        with tempfile.TemporaryDirectory() as tmp:
+            dedup = Deduplicator(Path(tmp) / "hash.json")
+            items = [
+                {"title": "Python Dev", "url": "https://x.test/1"},
+                {"title": "Python  Dev​", "url": "https://x.test/1"},
+                {"title": "ＰＹＴＨＯＮ Dev", "url": "https://x.test/1"},
+            ]
+            with mock.patch("builtins.print"):
+                self.assertEqual(len(dedup.deduplicate(items, ["title", "url"])), 1)
+            # Plain values keep their historical hash (hash DB compatibility).
+            import hashlib
+
+            self.assertEqual(
+                dedup._make_hash(items[0], ["title", "url"]),
+                hashlib.md5(b"python dev|https://x.test/1").hexdigest(),
+            )
+
+    def test_title_search_folds_thai_sara_am_width_and_zero_width(self):
+        from adapters.outbound.storage_adapter import StorageAdapter
+        from core.models import JobListing
+
+        with tempfile.TemporaryDirectory() as tmp:
+            store = StorageAdapter(Path(tmp))
+            items = [
+                JobListing(title="ผู้จัดการฝ่ายทำความสะอาด"),  # composed sara am
+                JobListing(title="Python​  Developer"),
+                JobListing(title="ＤＡＴＡ Engineer"),
+            ]
+            find = lambda kw: store._apply_filters(items, {"title_contains": kw})  # noqa: E731
+            self.assertEqual(len(find("ทําความสะอาด")), 1)  # nikhahit + sara aa
+            self.assertEqual(len(find("python developer")), 1)
+            self.assertEqual(len(find("data engineer")), 1)

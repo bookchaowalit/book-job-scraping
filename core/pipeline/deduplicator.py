@@ -4,11 +4,14 @@ Uses content hashing to detect duplicates
 """
 import json
 import hashlib
+import re
+import unicodedata
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Set
 from datetime import datetime
 
 from core.atomic_io import write_json_atomic
+from core.pipeline.cleaner import strip_invisible
 
 
 DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
@@ -53,10 +56,14 @@ class Deduplicator:
         Returns:
             MD5 hash string
         """
-        # Normalize: lowercase, strip whitespace, concat key fields
+        # Normalize: NFKC (full-width Latin, Thai sara am), drop zero-width
+        # characters, collapse whitespace, lowercase; then concat key fields.
+        # Plain single-spaced values hash exactly as before, so existing
+        # hash DB entries stay valid.
         parts = []
         for field in key_fields:
-            val = str(item.get(field, "")).strip().lower()
+            val = unicodedata.normalize("NFKC", str(item.get(field, "")))
+            val = re.sub(r"\s+", " ", strip_invisible(val)).strip().lower()
             parts.append(val)
         
         content = "|".join(parts)

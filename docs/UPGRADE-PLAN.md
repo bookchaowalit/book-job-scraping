@@ -116,3 +116,16 @@ one-off scripts in `scripts/` remain untested and carry unused imports.
   run on it) and skips logging, and writes the log atomically. Tests: the
   tracker keeps a legacy list log and the sender still skips people already
   followed up; an unreadable log is left untouched.
+
+## Done in this pass (pass 5, text edge cases)
+- `DataCleaner`: zero-width space / word joiner / BOM / soft hyphen are
+  stripped (`strip_invisible`), so a "​"-only item counts as empty and
+  titles no longer keep invisible characters; salaries with a thousands
+  suffix ("฿30K - ฿50K") become `30,000-50,000` instead of `30-50`; Thai
+  digits in prices normalize to ASCII.
+- `Deduplicator` hash keys fold NFKC width, zero-width characters and runs of
+  whitespace (single-spaced plain values hash exactly as before, so
+  `data/hash_db.json` stays valid).
+- `StorageAdapter` `*_contains` search folds NFKC (Thai sara am U+0E33 vs
+  nikhahit + sara aa, full-width Latin), zero-width characters, whitespace
+  and case. 4 regression tests in `tests/test_bug_pattern_sweep.py`.

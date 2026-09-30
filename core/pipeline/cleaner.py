@@ -12,6 +12,18 @@ from datetime import datetime
 DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 EXPORTED_DIR = DATA_DIR / "exported"
 
+# Invisible format characters that ``str.strip()`` / ``\s`` do not remove:
+# zero-width space (common as a Thai word-break hint in scraped HTML), word
+# joiner, BOM / zero-width no-break space and soft hyphen. ZWJ/ZWNJ are kept
+# because they change how emoji and some scripts render.
+_INVISIBLE_RE = re.compile("[\u200b\u2060\ufeff\u00ad]")
+_THAI_DIGITS = str.maketrans("๐๑๒๓๔๕๖๗๘๙", "0123456789")
+
+
+def strip_invisible(text: str) -> str:
+    """Remove zero-width/BOM characters that survive ``strip()``."""
+    return _INVISIBLE_RE.sub("", text)
+
 
 class DataCleaner:
     """
@@ -39,6 +51,7 @@ class DataCleaner:
     URL_RE = re.compile(r"https?://[^\s<>\"']+")
     # Must start with a digit so a bare comma ("Negotiable, DOE") never matches.
     PRICE_RE = re.compile(r"\d[\d,]*(?:\.\d+)?")
+    SALARY_NUMBER_RE = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*([kK](?![a-zA-Z]))?")
     # A title suffix separator needs whitespace on both sides so hyphenated
     # words ("Front-End Developer") are not truncated.
     TITLE_SUFFIX_RE = re.compile(r"\s+[-–|]\s+.*$")
@@ -109,7 +122,7 @@ class DataCleaner:
         # Check if all values are empty/None
         meaningful = [
             v for v in item.values()
-            if v is not None and str(v).strip() != ""
+            if v is not None and strip_invisible(str(v)).strip() != ""
         ]
         return len(meaningful) == 0
 
@@ -134,6 +147,7 @@ class DataCleaner:
         """Normalize a single string value."""
         # Remove control characters
         text = re.sub(r"[\x00-\x08\x0b\x0c]", "", text)
+        text = strip_invisible(text)
         # Collapse whitespace
         text = re.sub(r"\s+", " ", text)
         # Strip leading/trailing whitespace
@@ -231,10 +245,11 @@ class DataCleaner:
         salary = salary.strip()
         # Remove "บาท", "THB", "฿"
         salary = re.sub(r"(บาท|THB|฿)", "", salary, flags=re.I).strip()
-        # Extract numbers
-        numbers = self.PRICE_RE.findall(salary)
+        salary = salary.translate(_THAI_DIGITS)
+        # Extract numbers; a "k"/"K" suffix ("30K - 50K") means thousands.
+        numbers = self.SALARY_NUMBER_RE.findall(salary)
         if numbers:
-            nums = [self._to_number(n) for n in numbers]
+            nums = [self._to_number(n, 1000 if k else 1) for n, k in numbers]
             if len(nums) == 2:
                 return f"{nums[0]:,}-{nums[1]:,}"
             elif len(nums) == 1:
@@ -242,9 +257,9 @@ class DataCleaner:
         return salary.strip()
 
     @staticmethod
-    def _to_number(text: str):
+    def _to_number(text: str, scale: int = 1):
         """Parse "12,500" or "1.5" into int/float (int when it is whole)."""
-        value = float(text.replace(",", ""))
+        value = float(text.replace(",", "")) * scale
         return int(value) if value.is_integer() else value
 
     def _normalize_price(self, price: str) -> str:
@@ -252,7 +267,7 @@ class DataCleaner:
         if not price:
             return ""
         # Remove currency symbols
-        price = re.sub(r"[฿$€£,]", "", str(price))
+        price = re.sub(r"[฿$€£,]", "", str(price).translate(_THAI_DIGITS))
         numbers = self.PRICE_RE.findall(price)
         if numbers:
             return numbers[0]
