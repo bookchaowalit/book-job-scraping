@@ -22,6 +22,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 try:
+    from scripts.json_store import load_json_for_update
+except ImportError:  # run as a script from scripts/
+    from json_store import load_json_for_update
+
+try:
     import httpx
 except ImportError:
     raise SystemExit(
@@ -328,12 +333,7 @@ def save_report(stats):
     print(f"[OK] Report saved to {WEEKLY_REPORT_JSON}")
 
     # Append to log
-    log = []
-    if WEEKLY_REPORT_LOG.exists():
-        try:
-            log = json.loads(WEEKLY_REPORT_LOG.read_text())
-        except Exception:
-            log = []
+    log = load_json_for_update(WEEKLY_REPORT_LOG, list, expected_type=list)
     log.append({
         "generated_at": stats.get("generated_at", ""),
         "total_jobs": stats.get("total_jobs", 0),

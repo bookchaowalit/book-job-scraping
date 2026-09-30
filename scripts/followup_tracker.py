@@ -17,6 +17,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 try:
+    from scripts.json_store import load_json_for_update
+except ImportError:  # run as a script from scripts/
+    from json_store import load_json_for_update
+
+try:
     import httpx
 except ImportError:
     raise SystemExit(
@@ -278,12 +283,7 @@ def generate_followup_emails(followup_list: list) -> list:
 def log_followup_run(followup_list: list, emails_generated: list):
     """Log follow-up run to JSON."""
     import json
-    log = {}
-    if FOLLOWUP_LOG.exists():
-        try:
-            log = json.loads(FOLLOWUP_LOG.read_text())
-        except Exception:
-            log = {}
+    log = load_json_for_update(FOLLOWUP_LOG, dict)
     if "runs" not in log:
         log["runs"] = []
     log["runs"].append({

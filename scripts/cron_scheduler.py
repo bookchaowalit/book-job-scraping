@@ -35,6 +35,11 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+try:
+    from scripts.json_store import load_json_for_update
+except ImportError:  # run as a script from scripts/
+    from json_store import load_json_for_update
+
 # ── Paths ────────────────────────────────────────────────────────────────────
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from repo_paths import REPO_ROOT as ROOT, DATA_DIR, SCRIPTS_DIR
@@ -215,12 +220,7 @@ def run_weekly(dry_run=False):
 
 def log_run(run_type, results):
     """Log scheduler run."""
-    log = {}
-    if CRON_LOG.exists():
-        try:
-            log = json.loads(CRON_LOG.read_text())
-        except Exception:
-            log = {}
+    log = load_json_for_update(CRON_LOG, dict)
     if "runs" not in log:
         log["runs"] = []
     log["runs"].append({

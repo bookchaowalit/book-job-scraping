@@ -25,6 +25,11 @@ from datetime import datetime
 from pathlib import Path
 
 try:
+    from scripts.json_store import load_json_for_update
+except ImportError:  # run as a script from scripts/
+    from json_store import load_json_for_update
+
+try:
     import httpx
 except ImportError:
     raise SystemExit(
@@ -405,12 +410,7 @@ def save_intel_results(results):
 
 def log_enrichment(results):
     """Append to enrichment log."""
-    log = {}
-    if COMPANY_INTEL_LOG.exists():
-        try:
-            log = json.loads(COMPANY_INTEL_LOG.read_text())
-        except Exception:
-            log = {}
+    log = load_json_for_update(COMPANY_INTEL_LOG, dict)
     if "enriched" not in log:
         log["enriched"] = []
     for r in results:

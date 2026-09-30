@@ -96,3 +96,7 @@ one-off scripts in `scripts/` remain untested and carry unused imports.
   exact host/subdomain, not substring; `parse_fb_search_results` keeps
   first-seen email order (`emails[0]` depended on set order); HN and
   Himalayas epochs are rendered in UTC, not host-local time.
+- JSON run logs (`cron_log`, follow-up, company-intel, weekly-report) no
+  longer replace the whole history with one entry after a failed read: new
+  `scripts/json_store.load_json_for_update` moves an unreadable file aside as
+  `<name>.corrupt-<UTC>` first (`tests/test_json_log_recovery.py`, 5 tests).
