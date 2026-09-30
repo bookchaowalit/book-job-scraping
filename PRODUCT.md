@@ -82,10 +82,13 @@ gates stay unit-testable.
 
 Full detail: [`SAFETY.md`](./SAFETY.md).
 
-## Current runtime state (2026-09-14)
+## Current runtime state (2026-09-30)
 
-- Collection cron is installed every five minutes and uses the repository
-  `.venv` plus `flock` to prevent overlapping runs.
+- The host moved from Linux to Windows. Collection runs every five minutes
+  through Windows Task Scheduler (`ops/windows/scheduled-task.ps1`), which calls
+  `scripts/scheduled_run.py` with the repository `.venv` and a portable lock
+  (`scripts/file_lock.py`) to prevent overlapping runs. `setup_cron.sh` remains
+  the Linux/cron path and uses the same runner semantics.
 - The enabled collection surface is nine configured jobs. News, Wongnai,
   Kaidee, SEO, AI tools, crypto, FX, stocks, and DefiLlama yields are
   `migrated` to domain crons. `flight_prices` and `ddproperty_condos` remain

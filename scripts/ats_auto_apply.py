@@ -36,6 +36,9 @@ CHROME_PATHS = [
     Path("/usr/bin/google-chrome"),
     Path("/usr/bin/chromium-browser"),
     Path("/usr/bin/chromium"),
+    Path(os.environ.get("PROGRAMFILES", "C:/Program Files")) / "Google/Chrome/Application/chrome.exe",
+    Path(os.environ.get("PROGRAMFILES(X86)", "C:/Program Files (x86)")) / "Google/Chrome/Application/chrome.exe",
+    Path(os.environ.get("LOCALAPPDATA", "")) / "Google/Chrome/Application/chrome.exe",
 ]
 
 from repo_paths import REPO_ROOT as ROOT, DATA_DIR, load_env

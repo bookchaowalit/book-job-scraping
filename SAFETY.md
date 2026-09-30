@@ -94,8 +94,9 @@ receipt metadata handoff; they do not certify or unlock the legacy senders.
 
 ## Correct operating statement
 
-- This repository's collection cron is explicitly installed and active every
-  five minutes via `setup_cron.sh`.
+- This repository's collection scheduler is explicitly installed and active
+  every five minutes via `ops/windows/scheduled-task.ps1` (Windows host) or
+  `setup_cron.sh` (Linux).
 - The cron runs only due collection jobs, then the health monitor, under a
   `flock` lock. It does not send applications or write the Solo Empire DB.
 - Live email/ATS send paths exist but are **blocked by default**.

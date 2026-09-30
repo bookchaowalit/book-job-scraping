@@ -41,7 +41,7 @@ def _latest_main_scheduler_run() -> str:
     if not SCHEDULE_STATE.exists():
         return ""
     try:
-        state = json.loads(SCHEDULE_STATE.read_text())
+        state = json.loads(SCHEDULE_STATE.read_text(encoding="utf-8"))
         runs = [entry.get("last_run", "") for entry in state.values()]
         return max((run for run in runs if run), default="")
     except (OSError, TypeError, ValueError):
@@ -85,7 +85,7 @@ def check_cron_status():
         return {"status": "missing", "message": "No scheduler state found"}
     
     try:
-        log = json.loads(CRON_LOG.read_text())
+        log = json.loads(CRON_LOG.read_text(encoding="utf-8"))
         last_daily = log.get("last_daily", "")
         last_weekly = log.get("last_weekly", "")
 
@@ -202,7 +202,7 @@ def check_pipeline_health():
         return {"status": "missing", "message": "No pipeline health report"}
     
     try:
-        health = json.loads(health_file.read_text())
+        health = json.loads(health_file.read_text(encoding="utf-8"))
         return {
             "status": "ok" if health.get("healthy") else "warning",
             "timestamp": health.get("timestamp", "")[:19],
@@ -220,7 +220,7 @@ def check_resume_variants():
         return {"status": "missing", "count": 0}
     
     try:
-        registry = json.loads(registry_file.read_text())
+        registry = json.loads(registry_file.read_text(encoding="utf-8"))
         variants = registry.get("variants", {})
         return {
             "status": "ok" if len(variants) >= 5 else "warning",

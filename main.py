@@ -20,7 +20,7 @@ from pathlib import Path
 # Load .env if present
 _env_path = Path(__file__).parent / ".env"
 if _env_path.exists():
-    for _line in _env_path.read_text().splitlines():
+    for _line in _env_path.read_text(encoding="utf-8").splitlines():
         _line = _line.strip()
         if _line and not _line.startswith("#") and "=" in _line:
             _key, _val = _line.split("=", 1)

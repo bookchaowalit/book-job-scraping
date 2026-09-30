@@ -97,8 +97,9 @@ CLI/Scheduler (inbound)
 
 ## Scheduled Jobs
 
-Jobs are defined in `config/jobs.yaml`. The installed local cron invokes
-`main.py run` every five minutes, so only jobs due at that moment are run.
+Jobs are defined in `config/jobs.yaml`. The installed local scheduler (Windows
+Task Scheduler via `ops/windows/scheduled-task.ps1`, or cron via
+`setup_cron.sh` on Linux) invokes `main.py run` every five minutes, so only jobs due at that moment are run.
 The scheduler state is written to `data/schedule_state.json`.
 
 | Job | Category | Engine | Schedule | Status |
@@ -679,8 +680,10 @@ python main.py run
 # Run a specific configured job
 python main.py run job_postings
 
-# Install or inspect the five-minute local cron
-bash setup_cron.sh install
+# Install or inspect the five-minute local scheduler
+.\ops\windows\scheduled-task.ps1 install   # Windows (PowerShell)
+.\ops\windows\scheduled-task.ps1 status
+bash setup_cron.sh install                  # Linux
 bash setup_cron.sh status
 
 # Check schedule status
@@ -705,8 +708,11 @@ python scripts/pipeline_runner.py --health
 python scripts/pipeline_health_monitor.py
 ```
 
-The cron entry runs `pipeline_health_monitor.py` after each collection run and
-uses `flock` to prevent overlapping runs. Use `--send-telegram` only when an
+Each scheduled tick (`scripts/scheduled_run.py` on Windows, the cron entry on
+Linux) runs `pipeline_health_monitor.py` after each collection run and holds a
+non-blocking lock (`scripts/file_lock.py` / `flock`) to prevent overlapping
+runs. On Windows, set `PYTHONUTF8=1` for manual runs; the scheduled runner sets
+it for you. Use `--send-telegram` only when an
 operator has explicitly approved an external notification.
 
 ---

@@ -49,8 +49,10 @@ Run due jobs once:
 Install/inspect the local five-minute scheduler:
 
 ```bash
-bash setup_cron.sh install
+bash setup_cron.sh install                  # Linux
 bash setup_cron.sh status
+.\ops\windows\scheduled-task.ps1 install   # Windows (PowerShell)
+.\ops\windows\scheduled-task.ps1 status
 ```
 
 The installed command runs `main.py run` and then

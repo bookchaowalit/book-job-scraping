@@ -1598,7 +1598,7 @@ def load_previous_urls() -> set:
     history_file = OUTPUT_DIR / "job_postings_history.csv"
     urls = set()
     if history_file.exists():
-        with open(history_file, "r") as f:
+        with open(history_file, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 if row.get("url"):
@@ -1611,7 +1611,7 @@ def save_jobs(jobs: list):
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     filepath = OUTPUT_DIR / "job_postings.csv"
     fieldnames = ["title", "company", "location", "salary", "url", "source", "keyword", "posted", "tags", "scraped_at"]
-    with open(filepath, "w", newline="") as f:
+    with open(filepath, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         for job in jobs:
@@ -1626,7 +1626,7 @@ def append_history(jobs: list):
     filepath = OUTPUT_DIR / "job_postings_history.csv"
     fieldnames = ["title", "company", "location", "salary", "url", "source", "keyword", "posted", "tags", "scraped_at"]
     file_exists = filepath.exists()
-    with open(filepath, "a", newline="") as f:
+    with open(filepath, "a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         if not file_exists:
             writer.writeheader()
@@ -1660,7 +1660,7 @@ def archive_old_jobs(max_age_days: int = 30):
 
     keep = []
     archive = []
-    with open(filepath, "r") as f:
+    with open(filepath, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             scraped = row.get("scraped_at", "")
@@ -1677,7 +1677,7 @@ def archive_old_jobs(max_age_days: int = 30):
         return 0
 
     # Write kept jobs back to main file
-    with open(filepath, "w", newline="") as f:
+    with open(filepath, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         for row in keep:
@@ -1685,7 +1685,7 @@ def archive_old_jobs(max_age_days: int = 30):
 
     # Append archived jobs to archive file
     file_exists = archive_path.exists()
-    with open(archive_path, "a", newline="") as f:
+    with open(archive_path, "a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         if not file_exists:
             writer.writeheader()

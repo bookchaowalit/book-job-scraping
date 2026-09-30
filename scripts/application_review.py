@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import argparse
 import csv
-import fcntl
 import hashlib
 import json
 import os
@@ -17,6 +16,11 @@ import tempfile
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
+
+try:
+    from .file_lock import exclusive_lock
+except ImportError:
+    from file_lock import exclusive_lock
 
 try:
     from .job_target_policy import HUMAN_VERIFICATION_FIELDS, PASS, REJECT, qualify_job
@@ -196,8 +200,7 @@ def record_submission(manifest: Path, receipt: Path, ledger: Path, submitted_at:
              'cover_letter_sha256': packet['cover_letter']['sha256'],
              'packet_sha256': digest(manifest)}
     ledger.parent.mkdir(parents=True, exist_ok=True)
-    with ledger.with_suffix('.lock').open('a') as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+    with exclusive_lock(ledger.with_suffix('.lock')):
         existing = json.loads(ledger.read_text()) if ledger.exists() else []
         for previous in existing:
             if canonical_url(previous['url']) == url:

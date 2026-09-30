@@ -37,7 +37,7 @@ class SchedulerAdapter:
             print(f"[Scheduler] No config found at {self.config_path}")
             return
 
-        with open(self.config_path) as f:
+        with open(self.config_path, encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         for job_data in config.get("jobs", []):
@@ -61,7 +61,7 @@ class SchedulerAdapter:
     def _load_state(self):
         """Load last-run state from disk."""
         if self.state_path.exists():
-            with open(self.state_path) as f:
+            with open(self.state_path, encoding="utf-8") as f:
                 self._state = json.load(f)
             # Apply state to jobs
             for name, state in self._state.items():
@@ -80,7 +80,7 @@ class SchedulerAdapter:
                 "run_count": job.run_count,
                 "error_count": job.error_count,
             }
-        with open(self.state_path, "w") as f:
+        with open(self.state_path, "w", encoding="utf-8") as f:
             json.dump(state, f, indent=2, default=str)
 
     def schedule(self, job: ScrapeJob) -> str:

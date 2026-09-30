@@ -37,7 +37,7 @@ class ProcessSecurityTest(unittest.TestCase):
                     self.assertEqual(module.run_task(task)["status"], "success")
                     self.assertEqual(run.call_args.args[0], task["cmd"])
                     self.assertIsInstance(task["cmd"], list)
-                    self.assertEqual(task["cmd"][1].split("/scripts/")[0], str(odd))
+                    self.assertEqual(Path(task["cmd"][1]).parent.parent, odd)
                     self.assertFalse(run.call_args.kwargs["shell"])
                     self.assertEqual(run.call_args.kwargs["cwd"], odd)
 

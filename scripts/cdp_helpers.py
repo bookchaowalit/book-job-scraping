@@ -9,6 +9,7 @@ import base64
 import json
 import os
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -234,8 +235,9 @@ class CDPBrowser:
         """Get the text content of the page for debugging."""
         return await self.evaluate("document.body.innerText")
 
-    async def screenshot(self, output_path: str = "/tmp/cdp_screenshot.png"):
+    async def screenshot(self, output_path: str | None = None):
         """Take a screenshot."""
+        output_path = output_path or os.path.join(tempfile.gettempdir(), "cdp_screenshot.png")
         result = await self.send("Page.captureScreenshot", {"format": "png"})
         data = base64.b64decode(result["data"])
         with open(output_path, "wb") as f:

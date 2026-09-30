@@ -80,7 +80,7 @@ def normalize_board(payload: dict, board: str, company: str, now: str) -> list[d
 
 
 def collect(config: Path, fetch=public_get) -> tuple[list[dict], dict]:
-    sources = yaml.safe_load(config.read_text())['greenhouse_boards']
+    sources = yaml.safe_load(config.read_text(encoding="utf-8"))['greenhouse_boards']
     if not isinstance(sources, list) or not 1 <= len(sources) <= 10:
         raise ValueError('Configure between 1 and 10 public boards')
     now = datetime.now(timezone.utc).isoformat()

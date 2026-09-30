@@ -26,7 +26,7 @@ External job boards
 
 ## Status (2026-08-25)
 
-- Scraping repo: collection cron active; health monitor green; live send/apply remains gated.
+- Scraping repo: collection scheduler active (Windows Task Scheduler, 2026-09-30); health monitor green; live send/apply remains gated.
 - `crypto_prices`: CoinGecko API capture is active after a bounded smoke; lake-first ingestion and the read-only API remain in `book-crypto-data`.
 - `exchange_rates`: Frankfurter API capture is active after a bounded smoke; lake-first ingestion and the read-only API remain in `book-fx-data`.
 - `stock_prices`: Yahoo Finance chart API capture is active after all nine configured tickers passed a bounded smoke; lake-first ingestion and the read-only API remain in `book-finance-data`.
