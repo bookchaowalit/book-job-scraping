@@ -21,8 +21,10 @@ switch ($Action) {
         $taskAction = New-ScheduledTaskAction -Execute $Python -Argument "`"$Runner`"" -WorkingDirectory $ProjectDir
         $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) `
             -RepetitionInterval (New-TimeSpan -Minutes 5)
+        # Priority 4 = normal. The default (7) also drops I/O priority, which
+        # stalled Python imports for minutes on a busy host.
         $settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -StartWhenAvailable `
-            -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
+            -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -Priority 4 `
             -ExecutionTimeLimit (New-TimeSpan -Hours 1)
         Register-ScheduledTask -TaskName $TaskName -Action $taskAction -Trigger $trigger -Settings $settings `
             -Description 'book-job-scraping: run due jobs + pipeline health monitor' -Force | Out-Null
