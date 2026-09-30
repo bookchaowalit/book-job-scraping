@@ -1,7 +1,7 @@
 # Upgrade Plan
 
-**Current state: 7.5/10** (pass 1: 7; pass 2: 7 -> 7.5; pass 3: 7.5, core
-ports now covered) — broad, well-documented collection + prep pipeline with a
+**Current state: 8/10** (pass 1: 7; pass 2: 7 -> 7.5; pass 3: 7.5, core
+ports now covered; pass 4: 7.5 -> 8, stores written atomically) — broad, well-documented collection + prep pipeline with a
 green offline suite (243 tests), Linux CI plus a Windows scheduler job; many
 one-off scripts in `scripts/` remain untested and carry unused imports.
 
@@ -11,8 +11,10 @@ one-off scripts in `scripts/` remain untested and carry unused imports.
 - (none open)
 
 ### P1
-- `StorageAdapter.save()` rewrites `items.json` in place; write to a temp
-  file + `os.replace` so an interrupted tick cannot truncate the store.
+- Remaining in-place JSON writers (`core/pipeline/cleaner.py` output,
+  `adapters/outbound/exporter_adapter.py`, `utils/exporters.py`,
+  `engines/base.py`) are regenerable exports; move them to
+  `core.atomic_io.write_json_atomic` if any becomes a source of truth.
 - Widen the Windows CI job from the scheduler tests to the full offline
   suite once it is known to pass on Windows (needs a first green run).
 - `ops/windows/scheduled-task.ps1`: confirm on the host that a `-Once`
@@ -72,3 +74,17 @@ one-off scripts in `scripts/` remain untested and carry unused imports.
 - New `tests/test_use_cases_and_storage.py` (19 tests, fake ports + temp
   dirs); date tests cover ISO/timezone/RFC 2822 preservation. Suite 243
   passed; ruff 0.16.9 CI gate (`E9,F63,F7,F82`) clean.
+
+## Done in this pass (pass 4)
+- New `core/atomic_io.py` (`write_text_atomic` / `write_json_atomic`):
+  serialize in memory, write a same-directory temp file, fsync, `os.replace`;
+  the temp file is removed on any exception.
+- `StorageAdapter.save()` (`data/<collection>/items.json`), the
+  `Deduplicator` hash DB (`data/hash_db.json`) and the scheduler state file
+  now use it, so a tick killed mid-write keeps the previous store instead of
+  truncating it.
+- New `tests/test_atomic_writes.py` (5 tests): round trip, unserializable
+  payload, interrupted `os.replace`, and a real crash test that hard-kills a
+  child process inside `save()` and checks `items.json` is unchanged. Added
+  to the `windows-latest` CI job. Suite 248 passed; ruff 0.15.8 and 0.16.9
+  CI gate clean.

@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 from typing import List, Optional, Dict
 
+from core.atomic_io import write_json_atomic
 from core.models import ScrapedItem, JobListing, BusinessListing, ProductListing, NewsArticle
 
 
@@ -63,8 +64,9 @@ class StorageAdapter:
         # Save all items
         filepath = collection_dir / "items.json"
         data = [item.to_dict() for item in existing]
-        with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2, default=str)
+        # Temp file + os.replace: an interrupted tick keeps the previous store
+        # instead of truncating items.json.
+        write_json_atomic(filepath, data, ensure_ascii=False, indent=2, default=str)
 
         # Update cache
         self._cache[collection] = existing

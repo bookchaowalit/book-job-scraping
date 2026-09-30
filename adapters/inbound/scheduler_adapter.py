@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import List, Optional, Dict
 from datetime import datetime, timedelta
 
+from core.atomic_io import write_json_atomic
 from core.models import ScrapeJob, ScrapeResult
 from core.ports import SchedulerPort
 
@@ -80,8 +81,7 @@ class SchedulerAdapter:
                 "run_count": job.run_count,
                 "error_count": job.error_count,
             }
-        with open(self.state_path, "w", encoding="utf-8") as f:
-            json.dump(state, f, indent=2, default=str)
+        write_json_atomic(self.state_path, state, indent=2, default=str)
 
     def schedule(self, job: ScrapeJob) -> str:
         """Add a job to the scheduler."""

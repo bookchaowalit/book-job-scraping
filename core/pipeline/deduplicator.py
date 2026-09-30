@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional, Set
 from datetime import datetime
 
+from core.atomic_io import write_json_atomic
+
 
 DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 HASH_DB_FILE = DATA_DIR / "hash_db.json"
@@ -38,9 +40,7 @@ class Deduplicator:
 
     def save(self):
         """Persist hash database to disk."""
-        self.hash_db_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.hash_db_file, "w", encoding="utf-8") as f:
-            json.dump(self.seen_hashes, f, indent=2)
+        write_json_atomic(self.hash_db_file, self.seen_hashes, indent=2)
 
     def _make_hash(self, item: dict, key_fields: List[str]) -> str:
         """
