@@ -97,7 +97,16 @@ class DataCleanerTests(unittest.TestCase):
             "1 มกราคม 2570": "2027-01-01",
             "13มิ.ย.2569": "2026-06-13",
             "5 ธ.ค 2026": "2026-12-05",
-            "2026-09-30T08:00:00Z": "2026-09-30",
+            "13 มิ.ย. 2569 14:30": "2026-06-13T14:30:00",
+            "13 มิ.ย. 2569 เวลา 14.30 น.": "2026-06-13T14:30:00",
+            "1 ม.ค. 2570 09:05:07": "2027-01-01T09:05:07",
+            "13 มิ.ย. 2569 25:00": "13 มิ.ย. 2569 25:00",  # invalid time: kept
+            # ISO dates/datetimes keep their time and timezone untouched.
+            "2026-09-30": "2026-09-30",
+            "2026-09-30T08:00:00Z": "2026-09-30T08:00:00Z",
+            "2026-09-30T08:00:00+07:00": "2026-09-30T08:00:00+07:00",
+            "2026-09-30 08:00:00.123456": "2026-09-30 08:00:00.123456",
+            "Tue, 30 Sep 2026 08:00:00 +0700": "Tue, 30 Sep 2026 08:00:00 +0700",
             "  31 ก.พ. 2569 ": "31 ก.พ. 2569",  # invalid day: kept as-is
             "yesterday": "yesterday",
             "": "",
@@ -112,6 +121,14 @@ class DataCleanerTests(unittest.TestCase):
             schema="news",
         )
         self.assertEqual(got[0]["published"], "2026-06-13")
+
+    def test_news_schema_keeps_iso_published_time_and_timezone(self) -> None:
+        published = "2026-09-30T08:15:00+07:00"
+        got = self.cleaner.clean(
+            [{"title": "ข่าว", "url": "https://example.com/b", "published": published}],
+            schema="news",
+        )
+        self.assertEqual(got[0]["published"], published)
 
     def test_clean_does_not_mutate_caller_items(self) -> None:
         item = {"title": "Engineer", "url": "https://example.com/j", "salary": "30,000 - 40,000"}

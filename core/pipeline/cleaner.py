@@ -273,26 +273,27 @@ class DataCleaner:
         "ก.ค.": 7, "กรกฎาคม": 7, "ส.ค.": 8, "สิงหาคม": 8, "ก.ย.": 9, "กันยายน": 9,
         "ต.ค.": 10, "ตุลาคม": 10, "พ.ย.": 11, "พฤศจิกายน": 11, "ธ.ค.": 12, "ธันวาคม": 12,
     }
-    _THAI_DATE = re.compile(r"^(\d{1,2})\s*(\S+?)\s*(\d{4})$")
+    # "13 มิ.ย. 2569", optionally followed by a time "14:30", "14.30 น." or
+    # "14:30:05".
+    _THAI_DATE = re.compile(
+        r"^(\d{1,2})\s*(\S+?)\s*(\d{4})"
+        r"(?:\s+(?:เวลา\s*)?(\d{1,2})[:.](\d{2})(?:[:.](\d{2}))?\s*(?:น\.?)?)?$"
+    )
     _BUDDHIST_ERA_OFFSET = 543
 
     def _normalize_date(self, date_str: str) -> str:
-        """Normalize a Thai (or ISO) date to ``YYYY-MM-DD``.
+        """Normalize Thai / Buddhist-era dates to ISO 8601 without losing data.
 
         "13 มิ.ย. 2569" and "13 มิถุนายน 2569" (Buddhist era) become
-        "2026-06-13"; a Gregorian year ("13 มิ.ย. 2026") is kept. ISO dates
-        and datetimes are reduced to their date. Anything else is returned
-        stripped but otherwise unchanged, so no information is lost.
+        "2026-06-13"; a Gregorian year ("13 มิ.ย. 2026") is kept. A trailing
+        time is preserved ("13 มิ.ย. 2569 14:30 น." -> "2026-06-13T14:30:00").
+        Anything else -- including ISO dates/datetimes with their time and
+        timezone, RFC 2822 feed dates and unparseable text -- is returned
+        whitespace-collapsed but otherwise unchanged, so no information is lost.
         """
         text = re.sub(r"\s+", " ", str(date_str or "")).strip()
         if not text:
             return text
-        iso = re.match(r"^(\d{4})-(\d{2})-(\d{2})(?:[T ].*)?$", text)
-        if iso:
-            try:
-                return datetime(int(iso[1]), int(iso[2]), int(iso[3])).date().isoformat()
-            except ValueError:
-                return text
         match = self._THAI_DATE.match(text)
         if not match:
             return text
@@ -303,7 +304,11 @@ class DataCleaner:
         if year > 2400:  # Buddhist era
             year -= self._BUDDHIST_ERA_OFFSET
         try:
-            return datetime(year, month, day).date().isoformat()
+            if match[4] is None:
+                return datetime(year, month, day).date().isoformat()
+            return datetime(
+                year, month, day, int(match[4]), int(match[5]), int(match[6] or 0)
+            ).isoformat()
         except ValueError:
             return text
 

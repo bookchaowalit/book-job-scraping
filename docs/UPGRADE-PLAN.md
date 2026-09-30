@@ -1,9 +1,9 @@
 # Upgrade Plan
 
-**Current state: 7.5/10** (pass 1: 7; pass 2: 7 -> 7.5) — broad,
-well-documented collection + prep pipeline with a green offline suite (~230
-tests), Linux CI plus a Windows scheduler job; many one-off scripts in
-`scripts/` remain untested and carry unused imports.
+**Current state: 7.5/10** (pass 1: 7; pass 2: 7 -> 7.5; pass 3: 7.5, core
+ports now covered) — broad, well-documented collection + prep pipeline with a
+green offline suite (243 tests), Linux CI plus a Windows scheduler job; many
+one-off scripts in `scripts/` remain untested and carry unused imports.
 
 ## Backlog
 
@@ -11,9 +11,8 @@ tests), Linux CI plus a Windows scheduler job; many one-off scripts in
 - (none open)
 
 ### P1
-- Add tests for `core/use_cases.py` (`ScrapeUseCase` / `SearchUseCase`) with
-  fake ports, and for `adapters/outbound/storage_adapter.py` on a temp dir.
-
+- `StorageAdapter.save()` rewrites `items.json` in place; write to a temp
+  file + `os.replace` so an interrupted tick cannot truncate the store.
 - Widen the Windows CI job from the scheduler tests to the full offline
   suite once it is known to pass on Windows (needs a first green run).
 - `ops/windows/scheduled-task.ps1`: confirm on the host that a `-Once`
@@ -55,3 +54,21 @@ tests), Linux CI plus a Windows scheduler job; many one-off scripts in
   running the file-lock and scheduler tests.
 - `DataCleaner.clean()` no longer mutates caller dicts; `_normalize_date`
   parses Thai month names / Buddhist-era years to ISO dates (with tests).
+
+## Done in this pass (pass 3)
+- Bug: `DataCleaner._normalize_date` truncated ISO datetimes for news
+  `published` to `YYYY-MM-DD` (dropping time and timezone) despite its
+  no-loss docstring. ISO / RFC 2822 values are now returned unchanged; only
+  Thai month names and Buddhist-era years are normalized, and a trailing
+  Thai time ("14:30", "14.30 น.") is preserved as `YYYY-MM-DDTHH:MM:SS`.
+- `ScrapeUseCase.execute`: duration recorded on every path (early returns
+  used to report 0 s), errors appended instead of overwritten.
+- `SearchUseCase`: `max_price=0` is now a real filter; negative limits
+  clamp to 0.
+- `StorageAdapter`: range filters coerce display prices ("1,299",
+  "฿1,299.50") instead of raising `TypeError` (MCP `search_products` crash
+  on exported data); `load()` returns a copy of the cache; `exists()` skips
+  corrupt/non-list files; news records load as `NewsArticle`.
+- New `tests/test_use_cases_and_storage.py` (19 tests, fake ports + temp
+  dirs); date tests cover ISO/timezone/RFC 2822 preservation. Suite 243
+  passed; ruff 0.16.9 CI gate (`E9,F63,F7,F82`) clean.
