@@ -107,3 +107,12 @@ one-off scripts in `scripts/` remain untested and carry unused imports.
 - `scrape_discovered_jobs` (extractor routing + URL-slug parsing) and
   `prepare_applications` (ATS score bonus / apply URL) match ATS and board
   hosts exactly (`_host_is`), not by substring (`clever.com` was `lever.co`).
+- Regression fix: `followup_tracker` no longer passes the shared
+  `data/followup_log.json` through `load_json_for_update`. That renamed the
+  legacy list-format log (which `send_followup_emails` accepts) to
+  `.corrupt-*`, so the sender then saw no log and would re-send every
+  follow-up. The tracker now normalizes a list to `{"runs": [], "sent": list}`
+  like the sender, leaves an unreadable log in place (the sender refuses to
+  run on it) and skips logging, and writes the log atomically. Tests: the
+  tracker keeps a legacy list log and the sender still skips people already
+  followed up; an unreadable log is left untouched.

@@ -48,12 +48,37 @@ class JsonLogRecoveryTests(unittest.TestCase):
         self.assertEqual(len(json.loads(path.read_text())["runs"]), 2)
         self.assertEqual(list(self.dir.glob("*.corrupt-*")), [])
 
-    def test_followup_tracker_log(self):
+    def test_followup_tracker_leaves_unreadable_log_in_place(self):
+        # The sender reads the same file and refuses to run on an unreadable
+        # one; renaming it would make the sender see no log at all.
         path = self.dir / "followup_log.json"
         path.write_text(CORRUPT, encoding="utf-8")
         with mock.patch.object(followup_tracker, "FOLLOWUP_LOG", path):
             followup_tracker.log_followup_run([{"company": "Acme"}], [])
-        self._assert_kept(path)
+        self.assertEqual(path.read_text(encoding="utf-8"), CORRUPT)
+        self.assertEqual(list(self.dir.glob("*.corrupt-*")), [])
+
+    def test_followup_tracker_keeps_legacy_list_log_for_sender(self):
+        path = self.dir / "followup_log.json"
+        sent = [{"company": "Acme", "to": "jane@acme.example", "sent_at": "2026-01-10T09:00:00"}]
+        path.write_text(json.dumps(sent), encoding="utf-8")
+        with mock.patch.object(followup_tracker, "FOLLOWUP_LOG", path):
+            followup_tracker.log_followup_run([{"company": "Acme"}], [])
+        self.assertEqual(list(self.dir.glob("*.corrupt-*")), [], "valid legacy log was renamed")
+        saved = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(saved["sent"], sent)
+        self.assertEqual(len(saved["runs"]), 1)
+
+        send_log = [{
+            "status": "sent",
+            "company": "Acme",
+            "title": "Data Engineer",
+            "to": "jane@acme.example",
+            "sent_at": "2026-01-01T09:00:00",
+        }]
+        with mock.patch.object(send_followup_emails, "FOLLOWUP_LOG_FILE", path):
+            followup_log = send_followup_emails.load_followup_log()
+        self.assertEqual(send_followup_emails.build_followup_candidates(send_log, followup_log), [])
 
     def test_company_intel_log(self):
         path = self.dir / "company_intel_log.json"
