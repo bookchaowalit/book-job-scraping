@@ -44,8 +44,7 @@ KNOWN_BOARDS = [
     "RemoteOK", "Remotive", "TheMuse", "WorkingNomads",
     # Boards that may not be returning results currently
     "remoteok-api", "indeed", "seek-au", "seek-nz", "jobthai",
-    "jobsdb-th", "jobbkk", "upwork", "fastwork", "fiverr",
-    "toptal", "turing",
+    "jobsdb-th", "jobbkk", "fastwork",
 ]
 
 

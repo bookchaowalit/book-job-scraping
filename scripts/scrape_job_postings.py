@@ -48,8 +48,15 @@ except ImportError:
 
 import re
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from http_policy import PoliteHttp  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = ROOT / "data"
+
+# Every board request goes through one polite client: per-host spacing and
+# bounded retries (429/5xx honour Retry-After). Tune with JOB_SCRAPE_MIN_INTERVAL.
+_http = PoliteHttp(min_interval=float(os.environ.get("JOB_SCRAPE_MIN_INTERVAL", "1.0")))
 
 # Free scraper headers
 HEADERS = {
@@ -150,7 +157,7 @@ JOB_SOURCES = {
 def free_scrape_url(url: str) -> str:
     """Scrape a URL using free httpx + BeautifulSoup. Returns text content."""
     try:
-        resp = httpx.get(url, headers=HEADERS, timeout=30, follow_redirects=True)
+        resp = _http.get(url, headers=HEADERS, timeout=30, follow_redirects=True)
         resp.raise_for_status()
         html = resp.text
         soup = BeautifulSoup(html, 'html.parser')
@@ -253,7 +260,7 @@ def html_to_markdown(url: str) -> str:
     """Fetch URL and convert HTML to markdown-like text (free Firecrawl replacement).
     Preserves [title](url) links and **bold** text for regex parsing."""
     try:
-        resp = httpx.get(url, headers=HEADERS, timeout=30, follow_redirects=True)
+        resp = _http.get(url, headers=HEADERS, timeout=30, follow_redirects=True)
         resp.raise_for_status()
         html = resp.text
         soup = BeautifulSoup(html, 'html.parser')
@@ -309,7 +316,7 @@ def fetch_remotive(keyword: str, limit: int = 50) -> list:
     """Fetch jobs from Remotive API (free, no auth)."""
     url = f"https://remotive.com/api/remote-jobs?search={keyword}&limit={limit}"
     try:
-        resp = httpx.get(url, timeout=30, headers={"User-Agent": "SoloEmpire/1.0"})
+        resp = _http.get(url, timeout=30, headers={"User-Agent": "SoloEmpire/1.0"})
         resp.raise_for_status()
         data = resp.json()
         jobs = []
@@ -394,7 +401,7 @@ def fetch_remoteok_api(keyword: str) -> list:
     """Fetch jobs from RemoteOK public API (free, no auth)."""
     url = f"https://remoteok.com/api?tag={keyword}&limit=50"
     try:
-        resp = httpx.get(url, timeout=30, headers={"User-Agent": "SoloEmpire/1.0"})
+        resp = _http.get(url, timeout=30, headers={"User-Agent": "SoloEmpire/1.0"})
         resp.raise_for_status()
         data = resp.json()
         jobs_raw = [j for j in data if isinstance(j, dict) and "position" in j]
@@ -455,7 +462,7 @@ def fetch_himalayas(keyword: str, pages: int = 3) -> list:
     for page in range(pages):
         url = f"https://himalayas.app/jobs/api?offset={page * 20}&limit=20&search={keyword}"
         try:
-            resp = httpx.get(url, timeout=30, headers={"User-Agent": "SoloEmpire/1.0"})
+            resp = _http.get(url, timeout=30, headers={"User-Agent": "SoloEmpire/1.0"})
             resp.raise_for_status()
             data = resp.json()
             job_list = data.get("jobs", [])
@@ -491,7 +498,7 @@ def fetch_jobicy(keyword: str) -> list:
     jobs = []
     try:
         url = f"https://jobicy.com/api/v2/remote-jobs?tag={keyword}"
-        resp = httpx.get(url, timeout=30, headers={"User-Agent": "SoloEmpire/1.0"})
+        resp = _http.get(url, timeout=30, headers={"User-Agent": "SoloEmpire/1.0"})
         resp.raise_for_status()
         data = resp.json()
         if not data.get("success"):
@@ -519,7 +526,7 @@ def fetch_landing_jobs(keyword: str) -> list:
     jobs = []
     try:
         url = f"https://landing.jobs/api/v1/jobs?keyword={keyword}&remote=true"
-        resp = httpx.get(url, timeout=30, headers={"User-Agent": "SoloEmpire/1.0"})
+        resp = _http.get(url, timeout=30, headers={"User-Agent": "SoloEmpire/1.0"})
         resp.raise_for_status()
         data = resp.json()
         for j in data:
@@ -649,7 +656,7 @@ def fetch_jobthai(keyword: str) -> list:
     jobs = []
     try:
         search_url = f"https://www.jobthai.com/jobs?keyword={keyword}"
-        resp = httpx.get(search_url, headers=HEADERS, timeout=30, follow_redirects=True)
+        resp = _http.get(search_url, headers=HEADERS, timeout=30, follow_redirects=True)
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, 'html.parser')
         # Find all job links: <a href="/th/company/job/ID">
@@ -694,7 +701,7 @@ def fetch_jobsdb_th(keyword: str) -> list:
     jobs = []
     try:
         search_url = f"https://th.jobsdb.com/jobs?keywords={keyword}"
-        resp = httpx.get(search_url, headers=HEADERS, timeout=30, follow_redirects=True)
+        resp = _http.get(search_url, headers=HEADERS, timeout=30, follow_redirects=True)
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, 'html.parser')
         # Each job is in an <article> with data-automation attributes
@@ -795,7 +802,7 @@ def fetch_hn_who_is_hiring(keyword: str) -> list:
     jobs = []
     try:
         # Find the latest 'Who is hiring' thread
-        resp = httpx.get(
+        resp = _http.get(
             "https://hn.algolia.com/api/v1/search",
             params={"query": "Who is hiring", "tags": "story", "hitsPerPage": 1},
             timeout=15,
@@ -807,7 +814,7 @@ def fetch_hn_who_is_hiring(keyword: str) -> list:
         thread_id = hits[0]["objectID"]
 
         # Search comments in that thread for the keyword
-        resp2 = httpx.get(
+        resp2 = _http.get(
             "https://hn.algolia.com/api/v1/search",
             params={
                 "query": f"remote {keyword}",
@@ -851,12 +858,6 @@ def fetch_hn_who_is_hiring(keyword: str) -> list:
     except Exception as e:
         print(f"  Warning: HN Who is hiring failed for '{keyword}': {e}")
     return jobs
-
-
-# ── Upwork (free scraper, freelance marketplace) ─────────────────────────────
-def fetch_upwork(keyword: str) -> list:
-    """Upwork blocks scraping (403). Returns empty."""
-    return []
 
 
 # ── Fastwork (Thai freelance platform, free scraper) ─────────────────────────
@@ -918,7 +919,7 @@ def _load_peopleperhour_cards() -> list:
 
     url = "https://www.peopleperhour.com/freelance-jobs/technology-programming?location=remote"
     try:
-        response = httpx.get(url, headers=HEADERS, timeout=30, follow_redirects=True)
+        response = _http.get(url, headers=HEADERS, timeout=30, follow_redirects=True)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
         rows = []
@@ -989,131 +990,6 @@ def fetch_peopleperhour(keyword: str) -> list:
     return jobs
 
 
-# ── Fiverr (free scraper, freelance marketplace) ─────────────────────────────
-def fetch_fiverr(keyword: str) -> list:
-    """Fiverr blocks scraping (403). Returns empty."""
-    return []
-
-
-# ── Toptal (via Google site: search, high-end freelance) ──────────────────────
-def _firecrawl_search(query: str, limit: int = 20) -> list:
-    """Fallback search via Firecrawl API when Google fails."""
-    api_key = os.environ.get("FIRECRAWL_API_KEY", "")
-    if not api_key:
-        return []
-    try:
-        resp = httpx.post(
-            "https://api.firecrawl.dev/v1/search",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-            json={"query": query, "limit": limit},
-            timeout=30,
-        )
-        if resp.status_code != 200:
-            print(f"  Firecrawl fallback returned {resp.status_code}")
-            return []
-        data = resp.json()
-        results = []
-        for item in data.get("data", []):
-            title = item.get("title", "") or item.get("metadata", {}).get("title", "")
-            url = item.get("url", "") or item.get("metadata", {}).get("sourceURL", "")
-            desc = item.get("description", "") or item.get("markdown", "")[:200]
-            if title and url:
-                results.append({"title": title[:200], "url": url, "description": desc})
-            if len(results) >= limit:
-                break
-        if results:
-            print(f"  Firecrawl fallback: {len(results)} results for '{query[:50]}'")
-        return results
-    except Exception as e:
-        print(f"  Firecrawl fallback failed: {e}")
-        return []
-
-
-def fetch_toptal(keyword: str) -> list:
-    """Fetch freelance jobs from Toptal via Google site: search (no public job board).
-    Falls back to Firecrawl API if Google fails."""
-    jobs = []
-    search_query = f"site:toptal.com {keyword} freelance remote job"
-    try:
-        google_url = f"https://www.google.com/search?q={search_query}&num=20"
-        resp = httpx.get(google_url, headers=HEADERS, timeout=15, follow_redirects=True)
-        if resp.status_code != 200:
-            # Fall back to Firecrawl
-            fc_results = _firecrawl_search(search_query, limit=20)
-            for r in fc_results:
-                if "toptal.com" in r.get("url", ""):
-                    jobs.append({
-                        "title": r.get("title", f"Toptal {keyword} role")[:100],
-                        "company": "Toptal",
-                        "location": "Remote",
-                        "salary": "",
-                        "url": r["url"],
-                        "source": "Toptal",
-                        "keyword": keyword,
-                        "posted": "",
-                        "tags": f"freelance,toptal,premium,{keyword}",
-                    })
-            return jobs
-        soup = BeautifulSoup(resp.text, 'html.parser')
-        seen_urls = set()
-        for a_tag in soup.find_all('a', href=True):
-            url = a_tag['href']
-            # Google wraps links in /url?q=...
-            m = re.search(r'/url\?q=(https?://[^&]+)', url)
-            if m:
-                url = m.group(1)
-            if "toptal.com" not in url:
-                continue
-            if any(skip in url for skip in ["/hire/", "/talent/apply", "/blog", "/faq", "/contact"]):
-                continue
-            # Individual jobs have a numeric ID in the last URL segment
-            parts = url.rstrip("/").split("/")
-            last_segment = parts[-1] if parts else ""
-            if not any(c.isdigit() for c in last_segment):
-                continue
-            clean_url = url.split("?")[0]
-            if clean_url in seen_urls:
-                continue
-            seen_urls.add(clean_url)
-            title = a_tag.get_text(strip=True) or keyword
-            if len(title) < 5:
-                title = f"Toptal {keyword} role"
-            jobs.append({
-                "title": title.strip()[:100],
-                "company": "Toptal",
-                "location": "Remote",
-                "salary": "",
-                "url": clean_url,
-                "source": "Toptal",
-                "keyword": keyword,
-                "posted": "",
-                "tags": f"freelance,toptal,premium,{keyword}",
-            })
-    except Exception as e:
-        err_str = str(e).lower()
-        if any(kw in err_str for kw in ['name resolution', 'dns', 'network is unreachable', 'no route']):
-            fc_results = _firecrawl_search(search_query, limit=20)
-            for r in fc_results:
-                if "toptal.com" in r.get("url", ""):
-                    jobs.append({
-                        "title": r.get("title", f"Toptal {keyword} role")[:100],
-                        "company": "Toptal",
-                        "location": "Remote",
-                        "salary": "",
-                        "url": r["url"],
-                        "source": "Toptal",
-                        "keyword": keyword,
-                        "posted": "",
-                        "tags": f"freelance,toptal,premium,{keyword}",
-                    })
-        else:
-            print(f"  Warning: Toptal fetch failed for '{keyword}': {e}")
-    return jobs
-
-
 # ── Arc.dev (high-paying remote, via __NEXT_DATA__ HTML parsing) ─────────────
 def fetch_arc(keyword: str) -> list:
     """Fetch jobs from Arc.dev by parsing embedded __NEXT_DATA__ JSON."""
@@ -1122,7 +998,7 @@ def fetch_arc(keyword: str) -> list:
         import re
         import json as _json
         url = "https://arc.dev/remote-jobs"
-        resp = httpx.get(url, follow_redirects=True, timeout=30,
+        resp = _http.get(url, follow_redirects=True, timeout=30,
                          headers={"User-Agent": "Mozilla/5.0"})
         resp.raise_for_status()
         html = resp.text
@@ -1200,7 +1076,7 @@ def fetch_workingnomads(keyword: str) -> list:
             "size": 50,
             "sort": [{"pub_date": "desc"}],
         }
-        resp = httpx.post(es_url, json=body, timeout=15,
+        resp = _http.post(es_url, json=body, timeout=15,
                           headers={"User-Agent": "Mozilla/5.0"})
         resp.raise_for_status()
         data = resp.json()
@@ -1238,12 +1114,6 @@ def fetch_workingnomads(keyword: str) -> list:
     return jobs
 
 
-# ── Turing (high-paying remote, via free scraper) ─────────────────────────────
-def fetch_turing(keyword: str) -> list:
-    """Turing.com changed URL structure - returns empty."""
-    return []
-
-
 # ── TheMuse ────────────────────────────────────────────────────────────────────
 def fetch_themuse(keyword: str) -> list:
     """Fetch jobs from TheMuse public API."""
@@ -1251,7 +1121,7 @@ def fetch_themuse(keyword: str) -> list:
     try:
         import json as _json
         url = f"https://www.themuse.com/api/public/jobs?keyword={keyword}&remote=true&page=1"
-        resp = httpx.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
+        resp = _http.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
         resp.raise_for_status()
         data = resp.json()
         results = data.get("results", [])
@@ -1297,32 +1167,6 @@ def fetch_themuse(keyword: str) -> list:
     except Exception as e:
         print(f"  Warning: TheMuse fetch failed for '{keyword}': {e}")
     return jobs
-
-
-# ── LinkedIn (blocked - 403) ─────────────────────────────────────────────────
-def fetch_linkedin(keyword: str) -> list:
-    """LinkedIn blocks scraping - returns empty."""
-    print("  Note: LinkedIn blocks automated access (403), skipping")
-    return []
-
-
-# ── Glassdoor (blocked - anti-bot) ────────────────────────────────────────────
-def fetch_glassdoor(keyword: str) -> list:
-    """Glassdoor blocks scraping - returns empty."""
-    print("  Note: Glassdoor blocks automated access, skipping")
-    return []
-
-
-# ── Wellfound / AngelList (free API) ──────────────────────────────────────────
-def fetch_wellfound(keyword: str) -> list:
-    """Wellfound API no longer available (404). Returns empty."""
-    return []
-
-
-# ── Otta (via free scraper) ───────────────────────────────────────────────────
-def fetch_otta(keyword: str) -> list:
-    """Otta.com acquired by Welcome to the Jungle - no longer scrapable. Returns empty."""
-    return []
 
 
 # ── Dice (tech jobs, via free scraper) ────────────────────────────────────────
@@ -1397,12 +1241,6 @@ def fetch_dice(keyword: str) -> list:
     return jobs
 
 
-# ── BuiltIn (tech hubs, via free scraper) ─────────────────────────────────────
-def fetch_builtin(keyword: str) -> list:
-    """BuiltIn.com blocks scraping. Returns empty."""
-    return []
-
-
 # ── Remote.co (RSS feed, no auth) ────────────────────────────────────────────
 def fetch_remoteco(keyword: str) -> list:
     """Fetch jobs from Remote.co RSS feed (no auth required)."""
@@ -1410,7 +1248,7 @@ def fetch_remoteco(keyword: str) -> list:
     try:
         import re
         url = f"https://remote.co/remote-jobs/search/?search_keywords={keyword}"
-        resp = httpx.get(url, timeout=30, follow_redirects=True, headers={"User-Agent": "SoloEmpire/1.0"})
+        resp = _http.get(url, timeout=30, follow_redirects=True, headers={"User-Agent": "SoloEmpire/1.0"})
         resp.raise_for_status()
         # Parse job links from HTML
         pattern = r'href="(https://remote\.co/remote-job/[^"]+)"[^>]*>([^<]+)<'
@@ -1462,7 +1300,7 @@ def fetch_jobspresso(keyword: str) -> list:
     jobs = []
     try:
         url = f"https://public.jobspresso.co/api/jobs?search={keyword}&limit=50"
-        resp = httpx.get(url, timeout=15, headers={"User-Agent": "SoloEmpire/1.0"})
+        resp = _http.get(url, timeout=15, headers={"User-Agent": "SoloEmpire/1.0"})
         resp.raise_for_status()
         data = resp.json()
         items = data if isinstance(data, list) else data.get("jobs", data.get("data", []))
@@ -1593,17 +1431,24 @@ def parse_salary(salary_str: str) -> int:
     return 0
 
 
+def history_key(job: dict) -> str:
+    """Stable identity for history dedup: URL, else source|company|title."""
+    url = (job.get("url") or "").strip()
+    if url:
+        return url
+    return "|".join((job.get(k) or "").strip().lower() for k in ("source", "company", "title"))
+
+
 def load_previous_urls() -> set:
-    """Load previously seen job URLs from history."""
+    """Load identities of every job already recorded in history."""
     history_file = OUTPUT_DIR / "job_postings_history.csv"
-    urls = set()
+    keys = set()
     if history_file.exists():
         with open(history_file, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
-                if row.get("url"):
-                    urls.add(row["url"])
-    return urls
+                keys.add(history_key(row))
+    return keys
 
 
 def save_jobs(jobs: list):
@@ -1621,7 +1466,7 @@ def save_jobs(jobs: list):
 
 
 def append_history(jobs: list):
-    """Append to history CSV."""
+    """Append first sightings to the history CSV (callers pass only new jobs)."""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     filepath = OUTPUT_DIR / "job_postings_history.csv"
     fieldnames = ["title", "company", "location", "salary", "url", "source", "keyword", "posted", "tags", "scraped_at"]
@@ -1638,14 +1483,17 @@ def append_history(jobs: list):
 
 class JobPostingScraper:
     """Wrapper class for scheduler compatibility."""
-    def __init__(self, boards=None, keywords=None, min_salary=DEFAULT_MIN_SALARY, **kwargs):
+    def __init__(self, boards=None, keywords=None, min_salary=DEFAULT_MIN_SALARY, rate_limit=None, **kwargs):
         self.boards = boards or ["remotive", "weworkremotely"]
         self.keywords = keywords or ["python", "react", "next.js", "typescript"]
         self.min_salary = min_salary
+        if rate_limit:
+            # jobs.yaml rate_limit = minimum seconds between requests to one host
+            _http.min_interval = float(rate_limit)
 
     async def run(self, **kwargs):
-        main(boards=self.boards, keywords=self.keywords, min_salary=self.min_salary)
-        return [{"source": "jobs", "count": 0}]
+        stats = main(boards=self.boards, keywords=self.keywords, min_salary=self.min_salary)
+        return [{"source": "jobs", "count": stats["unique"], "new": stats["new"], **stats}]
 
 
 def archive_old_jobs(max_age_days: int = 30):
@@ -1714,6 +1562,7 @@ def main(boards=None, keywords=None, min_salary=DEFAULT_MIN_SALARY, output_dir=N
 
     all_jobs = []
     seen_urls = set()
+    per_board: dict[str, int] = {}
 
     for keyword in keywords:
         print(f"\n  Searching: {keyword}...")
@@ -1748,36 +1597,18 @@ def main(boards=None, keywords=None, min_salary=DEFAULT_MIN_SALARY, output_dir=N
                 jobs = fetch_jobbkk(keyword)
             elif board == "hn-hiring":
                 jobs = fetch_hn_who_is_hiring(keyword)
-            elif board == "upwork":
-                jobs = fetch_upwork(keyword)
             elif board == "fastwork":
                 jobs = fetch_fastwork(keyword)
             elif board == "peopleperhour":
                 jobs = fetch_peopleperhour(keyword)
-            elif board == "fiverr":
-                jobs = fetch_fiverr(keyword)
-            elif board == "toptal":
-                jobs = fetch_toptal(keyword)
-            elif board == "linkedin":
-                jobs = fetch_linkedin(keyword)
-            elif board == "glassdoor":
-                jobs = fetch_glassdoor(keyword)
             elif board == "arc":
                 jobs = fetch_arc(keyword)
             elif board == "workingnomads":
                 jobs = fetch_workingnomads(keyword)
-            elif board == "turing":
-                jobs = fetch_turing(keyword)
             elif board == "themuse":
                 jobs = fetch_themuse(keyword)
-            elif board == "wellfound":
-                jobs = fetch_wellfound(keyword)
-            elif board == "otta":
-                jobs = fetch_otta(keyword)
             elif board == "dice":
                 jobs = fetch_dice(keyword)
-            elif board == "builtin":
-                jobs = fetch_builtin(keyword)
             elif board == "remoteco":
                 jobs = fetch_remoteco(keyword)
             elif board == "jobspresso":
@@ -1791,6 +1622,7 @@ def main(boards=None, keywords=None, min_salary=DEFAULT_MIN_SALARY, output_dir=N
                 continue
 
             print(f"    {board}: {len(jobs)} jobs")
+            per_board[board] = per_board.get(board, 0) + len(jobs)
             all_jobs.extend(jobs)
 
     # Deduplicate by URL
@@ -1807,12 +1639,13 @@ def main(boards=None, keywords=None, min_salary=DEFAULT_MIN_SALARY, output_dir=N
         unique_jobs = [j for j in unique_jobs if parse_salary(j.get("salary", "")) >= min_salary]
         print(f"\n  After salary filter: {len(unique_jobs)} jobs")
 
-    # Detect new jobs
-    previous_urls = load_previous_urls()
-    new_jobs = [j for j in unique_jobs if j["url"] not in previous_urls]
+    # Detect new jobs; history keeps one row per job (its first sighting)
+    previous_keys = load_previous_urls()
+    new_jobs = [j for j in unique_jobs if history_key(j) not in previous_keys]
 
     save_jobs(unique_jobs)
-    append_history(unique_jobs)
+    if new_jobs:
+        append_history(new_jobs)
 
     if new_jobs:
         print(f"\n  *** {len(new_jobs)} NEW JOBS detected ***")
@@ -1829,13 +1662,24 @@ def main(boards=None, keywords=None, min_salary=DEFAULT_MIN_SALARY, output_dir=N
     if archived:
         print(f"  Auto-archived {archived} old jobs")
 
+    print(f"  HTTP: {_http.stats['requests']} requests, {_http.stats['retries']} retries, "
+          f"{_http.stats['failures']} failed, {_http.stats['skipped']} skipped")
+    if _http.down_hosts:
+        print(f"  Hosts down this run: {', '.join(sorted(_http.down_hosts))}")
     print("  Done.")
+    return {
+        "unique": len(unique_jobs),
+        "new": len(new_jobs),
+        "per_board": per_board,
+        "http": dict(_http.stats),
+        "down_hosts": sorted(_http.down_hosts),
+    }
 
 
 if __name__ == "__main__":
     import argparse as _argparse
     _p = _argparse.ArgumentParser(description="Scrape remote job postings")
-    _p.add_argument("--boards", default="remoteok-api,himalayas,landing-jobs,jobicy,hn-hiring,remotive,upwork,fastwork,peopleperhour,toptal,arc,workingnomads,turing,themuse,wellfound,otta,builtin,remoteco,jobspresso,workatastartup,devjobstore")
+    _p.add_argument("--boards", default="remoteok-api,himalayas,jobicy,hn-hiring,remotive,fastwork,peopleperhour,arc,workingnomads,themuse,jobspresso,workatastartup,devjobstore")
     _p.add_argument("--keywords", default="python contract,next.js contract,react freelance,AI automation contract,part-time full-stack,fractional engineer,contract-to-hire developer,paid trial software developer,apprenticeship software engineer,open source fellowship developer,volunteer software developer,stipend developer fellowship,eBPF community fellowship")
     _p.add_argument("--min-salary", type=int, default=0)
     _a = _p.parse_args()

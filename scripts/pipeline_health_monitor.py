@@ -130,8 +130,19 @@ def check_cron_status():
         return {"status": "error", "error": str(e)}
 
 
+# Collection output refreshes every 6 hours; two missed runs is an outage.
+COLLECTION_MAX_AGE_HOURS = float(os.getenv("PIPELINE_COLLECTION_MAX_AGE_HOURS", "12"))
+COLLECTION_FILES = ("job_postings.csv", "matched_jobs.csv")
+
+
 def check_data_freshness():
-    """Check freshness of key data files."""
+    """Check freshness of key data files.
+
+    Collection files are critical when missing or older than
+    COLLECTION_MAX_AGE_HOURS. Application-workflow files (apply tracker, job
+    descriptions) only exist once that manual workflow has started, so they
+    are informational.
+    """
     files = {
         "job_postings.csv": DATA_DIR / "job_postings.csv",
         "matched_jobs.csv": DATA_DIR / "matched_jobs.csv",
@@ -155,8 +166,9 @@ def check_data_freshness():
             except Exception:
                 pass
             
+            max_age = COLLECTION_MAX_AGE_HOURS if name in COLLECTION_FILES else 48
             freshness[name] = {
-                "status": "ok" if age_hours < 48 else "stale",
+                "status": "ok" if age_hours < max_age else "stale",
                 "age_hours": round(age_hours, 1),
                 "size_bytes": size,
                 "rows": row_count,
@@ -283,10 +295,13 @@ def run_health_check(send_telegram_flag=False):
         age = f"{info['age_hours']:.1f}h" if info['age_hours'] else "N/A"
         rows = info.get('rows', 0)
         print(f"   {icon} {name:30s} {age:8s} ({rows:,} rows)")
+        collection = name in COLLECTION_FILES
         if info["status"] == "missing":
-            issues.append(f"Data missing: {name}")
+            (issues if collection else warnings).append(f"Data missing: {name}")
         elif info["status"] == "stale":
-            warnings.append(f"Data stale: {name}")
+            (issues if collection else warnings).append(
+                f"Data stale: {name} ({info['age_hours']:.1f}h old)"
+            )
     
     # 4. API Keys
     print("\n🔑 API Keys:")
@@ -342,7 +357,7 @@ def run_health_check(send_telegram_flag=False):
         report["warnings"] = warnings
     
     # Save report
-    HEALTH_REPORT.write_text(json.dumps(report, indent=2))
+    HEALTH_REPORT.write_text(json.dumps(report, indent=2), encoding="utf-8")
     print(f"\n  📄 Report saved: {HEALTH_REPORT.name}")
     print(f"{'='*70}\n")
     
@@ -370,8 +385,10 @@ def main():
     parser.add_argument("--send-telegram", action="store_true", help="Send Telegram notification")
     args = parser.parse_args()
     
-    run_health_check(send_telegram_flag=args.send_telegram)
+    report = run_health_check(send_telegram_flag=args.send_telegram)
+    # Non-zero exit surfaces a critical state in the scheduler's last result.
+    return 1 if report.get("overall_status") == "critical" else 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

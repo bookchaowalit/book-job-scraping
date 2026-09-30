@@ -36,111 +36,8 @@ settings:
   log_level: INFO
 
 jobs:
-  # ── TECH NEWS (every 6 hours) ──────────────────────────
-  - name: notebookspec_tech
-    category: news
-    engine: rss
-    url: "https://notebookspec.com/web/feed"
-    schedule: "0 */6 * * *"
-    enabled: false  # migrated: book-news-scraping cron owns this feed
-    rate_limit: 2.0
-    scraper_module: "news.notebookspec_scraper"
-    scraper_class: "NotebookspecScraper"
-    params:
-      feed_url: "https://notebookspec.com/web/feed"
-      limit: 50
-
-  - name: matichon_news
-    category: news
-    engine: rss
-    url: "https://www.matichon.co.th/feed"
-    schedule: "0 */4 * * *"
-    enabled: false  # migrated: book-news-scraping cron owns this feed
-    rate_limit: 2.0
-    scraper_module: "news.matichon_scraper"
-    scraper_class: "MatichonScraper"
-    params:
-      feed_url: "https://www.matichon.co.th/feed"
-      limit: 50
-
-  # ── CLASSIFIEDS (every 6 hours) ──────────────────────────
-  - name: kaidee_classifieds
-    category: marketplace
-    engine: httpx
-    url: "https://www.kaidee.com/"
-    schedule: "0 */6 * * *"
-    enabled: false  # migrated: book-ecommerce-scraping cron owns this feed
-    rate_limit: 3.0
-    scraper_module: "ecommerce.kaidee_scraper"
-    scraper_class: "KaideeScraper"
-    params:
-      urls:
-        - "https://www.kaidee.com/"
-
-  # ── BUSINESSES / RESTAURANTS (weekly) ────────────────────
-  - name: wongnai_bangkok
-    category: businesses
-    engine: httpx
-    url: "https://www.wongnai.com/restaurants?locationKey=1"
-    schedule: "0 0 * * 0"
-    enabled: false  # migrated: book-restaurant-scraping cron owns this feed
-    rate_limit: 4.0
-    scraper_module: "restaurants.wongnai_scraper"
-    scraper_class: "WongnaiScraper"
-    params:
-      locations:
-        - bangkok
-      page_size: 100
-      max_pages: 3
-      min_rows: 20
-      output_stem: wongnai_bangkok
-
-  - name: wongnai_upcountry
-    category: businesses
-    engine: httpx
-    url: "https://www.wongnai.com/restaurants?locationKey=6"
-    schedule: "0 0 * * 0"
-    enabled: false  # migrated: book-restaurant-scraping cron owns this feed
-    rate_limit: 4.0
-    scraper_module: "restaurants.wongnai_scraper"
-    scraper_class: "WongnaiScraper"
-    params:
-      locations:
-        - khonkaen
-        - korat
-        - pattaya
-      page_size: 100
-      max_pages: 3
-      min_rows: 20
-      output_stem: wongnai_upcountry
-      source_url: "https://www.wongnai.com/restaurants?locationKey=6"
-
-  # ── NEWS (every 2 hours) ─────────────────────────────────
-  - name: thai_business_news
-    category: news
-    engine: rss
-    url: "https://www.bangkokpost.com/rss/data/business.xml"
-    schedule: "0 */2 * * *"
-    enabled: false  # migrated: book-news-scraping cron owns this feed
-    rate_limit: 1.0
-    scraper_module: "news.thai_business_scraper"
-    scraper_class: "ThaiBusinessNewsScraper"
-    params:
-      feed_url: "https://www.bangkokpost.com/rss/data/business.xml"
-      limit: 50
-
-  - name: thai_tech_news
-    category: news
-    engine: rss
-    url: "https://www.blognone.com/atom.xml"
-    schedule: "0 */2 * * *"
-    enabled: false  # migrated: book-news-scraping cron owns this feed
-    rate_limit: 1.0
-    scraper_module: "news.thai_tech_scraper"
-    scraper_class: "ThaiTechNewsScraper"
-    params:
-      feed_url: "https://www.blognone.com/atom.xml"
-      limit: 50
+  # News, classifieds, and restaurant jobs moved to book-news-scraping,
+  # book-ecommerce-scraping, and book-restaurant-scraping (their own crons).
 
   # ── REAL ESTATE (daily) ──────────────────────────────────
   - name: ddproperty_condos
@@ -442,14 +339,14 @@ jobs:
         - remoteok
         - himalayas
         - jobicy
-        - landing-jobs
+        # landing-jobs removed: robots.txt disallows /api/ (see source_coverage.yaml)
         - hn-hiring
         - workingnomads
         - themuse
-        - remoteco
-        # HTML scrapers (higher value, may break)
+        # remoteco removed: 0 jobs for weeks and search now times out (2026-09-30)
+        # HTML scrapers (higher value, may break). toptal was removed: it had
+        # no board of its own and scraped Google search results (Google ToS).
         - arc
-        - toptal
         # Contract/freelance marketplaces
         - fastwork
         - peopleperhour

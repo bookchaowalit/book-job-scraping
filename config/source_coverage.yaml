@@ -79,111 +79,6 @@ sources:
     priority: P0
     contract: job.v1
     next_action: "Capture career_postings.csv, qualify through job_match_filter into job_matches, then review exact documents before manual ATS submission."
-  - job: notebookspec_tech
-    business: news
-    source: NotebookSpec
-    url: "https://notebookspec.com/web/feed"
-    channel: rss
-    engine: rss
-    schedule: "0 */6 * * *"
-    module: news.notebookspec_scraper
-    status: migrated
-    priority: P2
-    business_value: medium
-    contract: news-capture
-    owner_repository: book-news-scraping
-    next_action: "Collected by book-news-scraping/scripts/run_feeds.py on the domain cron. Keep this local job disabled."
-
-  - job: matichon_news
-    business: news
-    source: Matichon
-    url: "https://www.matichon.co.th/feed"
-    channel: rss
-    engine: rss
-    schedule: "0 */4 * * *"
-    module: news.matichon_scraper
-    status: migrated
-    priority: P1
-    business_value: high
-    contract: news-capture
-    owner_repository: book-news-scraping
-    next_action: "Collected by book-news-scraping/scripts/run_feeds.py on the domain cron. Keep this local job disabled."
-
-  - job: kaidee_classifieds
-    business: marketplace
-    source: Kaidee
-    url: "https://www.kaidee.com/"
-    channel: scrape
-    engine: httpx
-    schedule: "0 */6 * * *"
-    module: ecommerce.kaidee_scraper
-    status: migrated
-    priority: P1
-    business_value: high
-    contract: marketplace-capture
-    owner_repository: book-ecommerce-scraping
-    next_action: "Collected by book-ecommerce-scraping/scripts/run_marketplace.py on the domain cron. Keep this local job disabled."
-
-  - job: wongnai_bangkok
-    business: restaurants
-    source: Wongnai Bangkok
-    url: "https://www.wongnai.com/restaurants?locationKey=1"
-    channel: scrape
-    engine: httpx
-    schedule: "0 0 * * 0"
-    module: restaurants.wongnai_scraper
-    status: migrated
-    priority: P1
-    business_value: medium
-    contract: local-business-capture
-    owner_repository: book-restaurant-scraping
-    next_action: "Collected by book-restaurant-scraping/scripts/run_restaurants.py on the domain cron. Keep this local job disabled."
-
-  - job: wongnai_upcountry
-    business: restaurants
-    source: Wongnai Upcountry
-    url: "https://www.wongnai.com/restaurants?locationKey=6"
-    channel: scrape
-    engine: httpx
-    schedule: "0 0 * * 0"
-    module: restaurants.wongnai_scraper
-    status: migrated
-    priority: P2
-    business_value: medium
-    contract: local-business-capture
-    owner_repository: book-restaurant-scraping
-    next_action: "Collected by book-restaurant-scraping/scripts/run_restaurants.py on the domain cron. Keep this local job disabled."
-
-  - job: thai_business_news
-    business: news
-    source: Bangkok Post Business
-    url: "https://www.bangkokpost.com/rss/data/business.xml"
-    channel: rss
-    engine: rss
-    schedule: "0 */2 * * *"
-    module: news.thai_business_scraper
-    status: migrated
-    priority: P1
-    business_value: high
-    contract: news-capture
-    owner_repository: book-news-scraping
-    next_action: "Collected by book-news-scraping/scripts/run_feeds.py on the domain cron. Keep this local job disabled."
-
-  - job: thai_tech_news
-    business: news
-    source: Blognone and Thai technology feeds
-    url: "https://www.blognone.com/atom.xml"
-    channel: rss
-    engine: rss
-    schedule: "0 */2 * * *"
-    module: news.thai_tech_scraper
-    status: migrated
-    priority: P1
-    business_value: high
-    contract: news-capture
-    owner_repository: book-news-scraping
-    next_action: "Collected by book-news-scraping/scripts/run_feeds.py on the domain cron. Keep this local job disabled."
-
   - job: ddproperty_condos
     business: property
     source: DDproperty rental listings
@@ -423,6 +318,25 @@ sources:
     contract: job.v1
     owner_repository: book-job-scraping
     next_action: "Maintain API-first board coverage and bounded HTML fallback; publish only through the job.v1 handoff."
+    # Per-board acquisition decision. robots.txt was checked for the exact
+    # fetched path on 2026-09-30. terms: allowed = public API/feed or robots
+    # permits the path; review = robots permits but terms are unreviewed HTML;
+    # blocked = must not be scheduled (source_coverage.py enforces this).
+    boards:
+      remotive: {access: api, robots: allowed, terms: allowed, note: "Public API; attribute Remotive as source."}
+      weworkremotely: {access: html, robots: allowed, terms: review, note: "Search page; prefer the public RSS feed."}
+      remoteok: {access: api, robots: allowed, terms: allowed, note: "Public API requires a visible link back to RemoteOK."}
+      himalayas: {access: api, robots: none, terms: allowed, note: "Public jobs API; no robots.txt."}
+      jobicy: {access: api, robots: allowed, terms: allowed, note: "Public remote-jobs API."}
+      landing-jobs: {access: api, robots: disallowed, terms: blocked, note: "robots.txt: Disallow /api/ for all agents."}
+      hn-hiring: {access: api, robots: none, terms: allowed, note: "HN Algolia search API."}
+      workingnomads: {access: api, robots: allowed, terms: review, note: "Undocumented search endpoint used by their site."}
+      themuse: {access: api, robots: allowed, terms: allowed, note: "Documented public jobs API."}
+      remoteco: {access: html, robots: allowed, terms: allowed, note: "Unscheduled 2026-09-30: search times out and returned 0 jobs for weeks."}
+      arc: {access: html, robots: allowed, terms: review, note: "HTML listing page."}
+      fastwork: {access: html, robots: allowed, terms: review, note: "HTML search page (Thai freelance)."}
+      peopleperhour: {access: html, robots: allowed, terms: review, note: "HTML category page."}
+      toptal: {access: html, robots: n/a, terms: blocked, note: "Removed: scraped Google search results (Google ToS)."}
 
   - job: stock_prices
     business: finance

@@ -2,6 +2,7 @@
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -22,7 +23,8 @@ with exclusive_lock({path!r}):
 
 class FileLockTest(unittest.TestCase):
     def test_second_process_sees_busy_lock(self):
-        with tempfile.TemporaryDirectory() as tmp:
+        # Windows may hold the killed holder's handle briefly; cleanup is incidental.
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             path = str(Path(tmp) / "x.lock")
             code = HOLD.format(scripts=str(ROOT / "scripts"), path=path)
             holder = subprocess.Popen([sys.executable, "-c", code], stdout=subprocess.PIPE, text=True)
@@ -34,8 +36,17 @@ class FileLockTest(unittest.TestCase):
             finally:
                 holder.kill()
                 holder.wait()
-            with exclusive_lock(path, blocking=False):
-                pass
+                holder.stdout.close()
+            # Windows releases a dead process's byte-range lock asynchronously.
+            deadline = time.monotonic() + 5
+            while True:
+                try:
+                    with exclusive_lock(path, blocking=False):
+                        break
+                except LockBusy:
+                    if time.monotonic() > deadline:
+                        raise
+                    time.sleep(0.1)
 
 
 if __name__ == "__main__":

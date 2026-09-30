@@ -132,6 +132,16 @@ def validate() -> tuple[dict, list[str], list[str]]:
         if channel != "local" and not job.get("url"):
             errors.append(f"{name}: non-local channel requires a source URL")
 
+        boards = entry.get("boards")
+        if boards is not None:
+            configured = (job.get("params") or {}).get("boards") or []
+            for board in configured:
+                decision = boards.get(board) if isinstance(boards, dict) else None
+                if not isinstance(decision, dict):
+                    errors.append(f"{name}: board {board!r} has no acquisition/terms decision")
+                elif decision.get("terms") == "blocked":
+                    errors.append(f"{name}: board {board!r} is blocked ({decision.get('note', '')}) but scheduled")
+
         module = entry.get("module", "")
         available = _module_path(module).is_file() if module else False
         if enabled and not available:

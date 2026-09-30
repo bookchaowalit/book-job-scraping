@@ -15,6 +15,7 @@ import asyncio
 import time
 import logging
 import importlib
+import inspect
 from pathlib import Path
 
 # Load .env if present
@@ -89,24 +90,12 @@ def load_category_scraper(job):
     params = job.params or {}
     run_kwargs = {}
 
-    # Build constructor kwargs based on scraper type
-    ctor_kwargs = {}
-
-    # WongnaiScraper: preserve the shared location/pagination contract.
-    if class_name == "WongnaiScraper":
-        for key in ("categories", "areas", "locations", "page_size", "min_rows", "output_stem", "source_url"):
-            if key in params:
-                ctor_kwargs[key] = params[key]
-
-    # ThaiNewsScraper: feeds
-    elif class_name == "ThaiNewsScraper":
-        if "feeds" in params:
-            ctor_kwargs["feed_names"] = params["feeds"]
-
-    # All other scrapers: pass all params as constructor kwargs
+    # Pass all params as constructor kwargs
     # (wrapper classes accept **kwargs and pick what they need)
-    else:
-        ctor_kwargs = dict(params)
+    ctor_kwargs = dict(params)
+    # Scrapers that declare rate_limit get the job's configured spacing.
+    if "rate_limit" not in ctor_kwargs and "rate_limit" in inspect.signature(cls).parameters:
+        ctor_kwargs["rate_limit"] = job.rate_limit
 
     try:
         scraper = cls(**ctor_kwargs)
@@ -136,11 +125,16 @@ async def execute_job(job, use_case, engine):
         try:
             results = await scraper.run(**run_kwargs)
             # Return a minimal result-like object for scheduler tracking
+            # Scrapers report {"count": n, "new": m}; older ones return one row per item.
+            counted = [r for r in results if isinstance(r, dict) and "count" in r]
+            scraped = sum(int(r["count"]) for r in counted) if counted else len(results)
+            new = sum(int(r.get("new", r["count"])) for r in counted) if counted else len(results)
+
             class CatResult:
                 success = True
-                items_scraped = len(results)
-                items_new = len(results)
-                items_cleaned = len(results)
+                items_scraped = scraped
+                items_new = new
+                items_cleaned = scraped
                 duration_seconds = 0.0
                 exported_to = []
                 errors = []

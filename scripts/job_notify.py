@@ -306,7 +306,7 @@ def main():
         print("[1/3] Running full scrape...")
         try:
             scrape_main(
-                boards="remoteok-api,himalayas,landing-jobs,jobicy,hn-hiring,remotive,upwork,fastwork,peopleperhour,toptal,arc,workingnomads,turing,themuse",
+                boards="remoteok-api,himalayas,jobicy,hn-hiring,remotive,fastwork,peopleperhour,arc,workingnomads,themuse",
                 keywords="python contract,next.js contract,react freelance,AI automation contract,part-time full-stack,fractional engineer"
             )
         except Exception as e:

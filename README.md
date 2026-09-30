@@ -57,9 +57,7 @@ book-scraping/
 │           └── exporters.py        # Legacy export helpers
 │
 ├── categories/                 # Website-specific scrapers (inherit from engines)
-│   ├── jobs/jobsdb_scraper.py      # Jobsdb Thailand
-│   ├── ecommerce/shopee_scraper.py # Shopee Thailand
-│   └── restaurants/wongnai_scraper.py  # Wongnai restaurants
+│   └── jobs/jobsdb_scraper.py      # Jobsdb Thailand
 │
 ├── mcp_server/                 # MCP data-as-a-service (inbound adapter)
 │   └── server.py               # Uses SearchUseCase → StorageAdapter
@@ -116,18 +114,12 @@ The scheduler state is written to `data/schedule_state.json`.
 | `propertyhub_condo_rent` | property | PropertyHub public HTML | Daily 10:00 AM | planned / disabled pending terms review |
 | `livinginsider_condo_rent` | property | LivingInsider public HTML | Daily 11:00 AM | planned / disabled pending terms review |
 | `zmyhome_condo_rent` | property | ZmyHome public HTML | Daily 12:00 PM | planned / disabled pending terms review |
-| `notebookspec_tech` | news | RSS | Every 6 hours | migrated to book-news-scraping |
 | `ddproperty_condos` | property | httpx + Thai `__NEXT_DATA__` | Daily 8:00 AM | blocked: httpx Cloudflare 403 |
 | `crypto_prices` | finance | CoinGecko API | Every 4 hours | migrated to book-crypto-data |
 | `exchange_rates` | finance | Frankfurter API | Every 6 hours | migrated to book-fx-data |
 | `stock_prices` | finance | Yahoo Finance chart API | Daily 8:00 AM | migrated to book-stock-data |
 | `defi_yields` | finance | DefiLlama pools API | Daily 7:00 AM | migrated to book-defi-data |
-| `kaidee_classifieds` | marketplace | Kaidee HTML | Every 6 hours | migrated to book-ecommerce-scraping |
-| `wongnai_bangkok` | businesses | Wongnai HTML | Weekly | migrated to book-restaurant-scraping |
-| `wongnai_upcountry` | businesses | Wongnai HTML | Weekly | migrated to book-restaurant-scraping |
-| `matichon_news` | news | Matichon RSS | Every 4 hours | migrated to book-news-scraping |
-| `thai_business_news` | news | Bangkok Post Business RSS | Every 2 hours | migrated to book-news-scraping |
-| `thai_tech_news` | news | Blognone Atom | Every 2 hours | migrated to book-news-scraping |
+| news / Kaidee / Wongnai jobs | — | — | — | removed 2026-09-30; owned by book-news-, book-ecommerce-, book-restaurant-scraping |
 | `seo_rankings` | marketing | httpx public pages | Daily 8:00 AM | migrated to book-seo-data |
 | `job_postings` | jobs | firecrawl+httpx | Every 6 hours | enabled |
 | `job_match_filter` | jobs | local | Every 6 hours, after capture | enabled |
@@ -140,26 +132,18 @@ former cross-source `money_opportunities` lane was retired with the shared
 opportunity synthesis; it is no longer scheduled or a collection target.
 `ddproperty_condos` has a Thai `__NEXT_DATA__` parser and fixture but live
 collection hits a Cloudflare JS challenge. `seo_rankings` is enabled as a
-public-page provenance check (no SERP ranks on the free path). News RSS jobs
-are migrated to `book-news-scraping` (`scripts/run_feeds.py`, cron every 2
-hours). `notebookspec_tech` was enabled after a
-dedicated RSS adapter returned 20 attributed canonical articles.
-`wongnai_upcountry` is enabled after a three-page live HTML smoke returned 28
-unique restaurants across Khon Kaen, Korat, and Pattaya with city attribution.
+public-page provenance check (no SERP ranks on the free path). News RSS,
+Kaidee, and Wongnai jobs were migrated to `book-news-scraping`,
+`book-ecommerce-scraping`, and `book-restaurant-scraping`, and their code was
+removed from this repository on 2026-09-30.
 `ai_tools` is enabled
 after a six-page Futurepedia HTML smoke returned 62 unique tools with category
-and canonical URL attribution. `wongnai_bangkok` is enabled after a three-page
-live HTML smoke returned 161 unique Bangkok-attributed restaurants.
+and canonical URL attribution.
 `crypto_prices` is enabled after the CoinGecko API smoke returned 20 validated
 rows. `exchange_rates` is enabled after a Frankfurter smoke returned 10
 validated rates, and `stock_prices` is enabled after Yahoo Finance returned 9
-validated ticker rows. `kaidee_classifieds` is enabled after a live HTML smoke
-returned 8 priced canonical listings. Re-enable other sources only after a
+validated ticker rows. Re-enable other sources only after a
 focused smoke test produces a trustworthy contract-compliant result.
-`matichon_news` is enabled after its RSS smoke returned 50 attributed canonical
-articles. `thai_business_news` is enabled after its RSS smoke returned 10
-attributed canonical business articles. `thai_tech_news` is enabled after its
-Blognone RSS smoke returned 10 attributed canonical technology articles.
 `defi_yields` is migrated to `book-defi-data` after a Firefox-UA live smoke
 returned 20 validated Ethereum pools with a provider timestamp within the
 24-hour freshness bound. The domain cron uses the same five-chain production
@@ -594,47 +578,6 @@ The stock adapter writes the validated Yahoo Finance chart responses to
 `data/exported/stock_prices.csv` and `data/exported/stock_history.csv`.
 Lake-first ingestion and the read-only API remain owned by `book-finance-data`.
 
-The Kaidee adapter writes the validated embedded page payload to
-`data/exported/kaidee_classifieds_raw.json` and the capture projections to
-`data/exported/kaidee_classifieds.csv` and
-`data/exported/kaidee_classifieds_history.csv`. It is collection-only; durable
-marketplace lake/API ownership remains with the downstream marketplace data
-product.
-
-The Matichon adapter writes the raw RSS response to
-`data/exported/matichon_news_raw.xml` and the capture projections to
-`data/exported/matichon_news.csv` and
-`data/exported/matichon_news_history.csv`. It is collection-only; durable news
-lake/API ownership remains with the downstream news data product.
-
-The Bangkok Post Business adapter writes the raw RSS response to
-`data/exported/thai_business_news_raw.xml` and the capture projections to
-`data/exported/thai_business_news.csv` and
-`data/exported/thai_business_news_history.csv`. It is collection-only; durable
-business-news lake/API ownership remains with the downstream news data
-product.
-
-The Blognone adapter writes the raw Atom-compatible response to
-`data/exported/thai_tech_news_raw.xml` and the capture projections to
-`data/exported/thai_tech_news.csv` and
-`data/exported/thai_tech_news_history.csv`. It is collection-only; durable
-technology-news lake/API ownership remains with the downstream news data
-product.
-
-The Wongnai adapter writes bounded raw HTML pages to
-`data/exported/wongnai_bangkok_raw.json` and the capture projections to
-`data/exported/wongnai_bangkok.csv` and
-`data/exported/wongnai_bangkok_history.csv`. It reads the embedded
-`window._wn` state, validates canonical restaurant URLs, and filters every row
-to Bangkok city attribution before writing collection-only output.
-
-The same adapter writes the upcountry capture to
-`data/exported/wongnai_upcountry_raw.json`,
-`data/exported/wongnai_upcountry.csv`, and
-`data/exported/wongnai_upcountry_history.csv`. The enabled upcountry job uses
-three bounded pages and keeps only rows attributed to `khonkaen`, `korat`, or
-`pattaya` (including Chon Buri city labels for Pattaya).
-
 The AI tools adapter writes bounded Futurepedia HTML pages to
 `data/exported/ai_tools_raw.json` and the capture projections to
 `data/exported/ai_tools.csv` and `data/exported/ai_tools_history.csv`. It
@@ -696,6 +639,22 @@ python scripts/filter_job_matches.py
 # Run MCP server
 python -m mcp_server.server
 ```
+
+### Board politeness and terms
+
+Every `job_postings` board request goes through `scripts/http_policy.py`: at
+most one request per host per `rate_limit` seconds (from `config/jobs.yaml`,
+override with `JOB_SCRAPE_MIN_INTERVAL`), and up to three attempts on 429/5xx
+or network errors with exponential backoff that honours `Retry-After` (capped
+at 60 s). Each run prints its request/retry/failure counts, and the scheduler
+records real scraped/new totals.
+
+`config/source_coverage.yaml` records an access type, robots.txt result, and
+terms decision for every board. `scripts/source_coverage.py --check` fails if a
+board without a decision, or one marked `blocked` (currently `landing-jobs`,
+whose robots.txt disallows `/api/`, and `toptal`, which scraped Google), is
+scheduled. History (`job_postings_history.csv`) records each job once, on first
+sighting.
 
 ### Collection health
 
