@@ -372,6 +372,24 @@ def parse_price(price_str: str) -> float:
     return number if number is not None else 0.0
 
 
+
+def _looks_like_listing_title(line: str) -> bool:
+    """Keep contact/attribute lines inside a listing instead of new titles."""
+
+    if line.startswith("#"):
+        return True
+    if not 20 < len(line) < 200 or line.startswith("http"):
+        return False
+    return not re.search(
+        r"฿|ล้าน|บาท|\b(?:bed|bath|sqm|sq\.?m|price|tel|phone|line|email|"
+        r"co\s*[- ]?agent|co\s*[- ]?broker)\b|"
+        r"(?:ห้องนอน|ห้องน้ำ|ราคา|โทร|ไลน์|อีเมล|เจ้าของ|นายหน้า|เอเจ(?:น(?:ต์|ท์)?|้น))|"
+        r"@|https?://|(?:\+66|0)(?:[\s().-]*\d){8,10}",
+        line,
+        flags=re.IGNORECASE,
+    )
+
+
 def extract_listings(
     markdown: str,
     listing_type: str,
