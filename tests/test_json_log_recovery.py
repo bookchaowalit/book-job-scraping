@@ -5,7 +5,15 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from scripts import company_intel, cron_scheduler, followup_tracker, weekly_report
+from scripts import (
+    company_intel,
+    cron_scheduler,
+    followup_tracker,
+    multi_resume_manager,
+    networking_event_tracker,
+    send_followup_emails,
+    weekly_report,
+)
 
 CORRUPT = '{"runs": [{"type": "daily"}, '  # truncated mid-write
 
@@ -63,6 +71,37 @@ class JsonLogRecoveryTests(unittest.TestCase):
             weekly_report.save_report({"generated_at": "2026-09-30"})
         self._assert_kept(path)
         self.assertEqual(len(json.loads(path.read_text())), 1)
+
+    def test_networking_events_are_kept(self):
+        path = self.dir / "networking_events.json"
+        path.write_text(CORRUPT, encoding="utf-8")
+        with mock.patch.object(networking_event_tracker, "EVENTS_FILE", path):
+            networking_event_tracker.add_event("Meetup")
+        self._assert_kept(path)
+        self.assertEqual(len(json.loads(path.read_text())["events"]), 1)
+
+    def test_resume_registry_is_kept(self):
+        path = self.dir / "resume_registry.json"
+        path.write_text(CORRUPT, encoding="utf-8")
+        with mock.patch.object(multi_resume_manager, "REGISTRY_FILE", path):
+            multi_resume_manager.save_registry(multi_resume_manager.load_registry())
+        self._assert_kept(path)
+
+    def test_unreadable_followup_send_log_stops_sending(self):
+        path = self.dir / "followup_emails_log.json"
+        path.write_text(CORRUPT, encoding="utf-8")
+        with mock.patch.object(send_followup_emails, "FOLLOWUP_LOG_FILE", path):
+            with self.assertRaises(RuntimeError):
+                send_followup_emails.load_followup_log()
+        self.assertEqual(path.read_text(encoding="utf-8"), CORRUPT)
+
+    def test_followup_send_log_without_runs_keeps_sent_entries(self):
+        path = self.dir / "followup_emails_log.json"
+        path.write_text(json.dumps({"sent": [{"company": "Acme"}]}), encoding="utf-8")
+        with mock.patch.object(send_followup_emails, "FOLLOWUP_LOG_FILE", path):
+            log = send_followup_emails.load_followup_log()
+        self.assertEqual(log["sent"], [{"company": "Acme"}])
+        self.assertEqual(log["runs"], [])
 
 
 if __name__ == "__main__":

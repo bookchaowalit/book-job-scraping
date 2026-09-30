@@ -100,3 +100,7 @@ one-off scripts in `scripts/` remain untested and carry unused imports.
   longer replace the whole history with one entry after a failed read: new
   `scripts/json_store.load_json_for_update` moves an unreadable file aside as
   `<name>.corrupt-<UTC>` first (`tests/test_json_log_recovery.py`, 5 tests).
+- Same fix for `networking_event_tracker` events and `multi_resume_manager`
+  registry; `send_followup_emails.load_followup_log` now refuses to run on an
+  unreadable log (treating it as empty re-sent every follow-up and then
+  overwrote the history) and keeps `sent` entries of logs without `runs`.

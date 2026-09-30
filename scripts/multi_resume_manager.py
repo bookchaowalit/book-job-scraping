@@ -14,6 +14,11 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+try:
+    from scripts.json_store import load_json_for_update
+except ImportError:  # run as a script from scripts/
+    from json_store import load_json_for_update
+
 # Paths
 SCRIPT_DIR = Path(__file__).resolve().parent
 DATA_DIR = SCRIPT_DIR.parent / "data"
@@ -135,13 +140,8 @@ DEFAULT_VARIANTS = {
 
 def load_registry():
     """Load resume registry."""
-    if not REGISTRY_FILE.exists():
-        return {"variants": {}, "created_at": None}
-    try:
-        with open(REGISTRY_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {"variants": {}, "created_at": None}
+    # An unreadable file is kept aside instead of being overwritten on save.
+    return load_json_for_update(REGISTRY_FILE, lambda: {"variants": {}, "created_at": None})
 
 
 def save_registry(data):

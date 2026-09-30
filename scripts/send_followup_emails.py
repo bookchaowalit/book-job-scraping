@@ -92,19 +92,28 @@ def load_send_log() -> list:
 
 
 def load_followup_log() -> dict:
-    """Load follow-up log."""
-    if FOLLOWUP_LOG_FILE.exists():
-        try:
-            data = json.loads(FOLLOWUP_LOG_FILE.read_text())
-            if isinstance(data, dict) and "runs" in data:
-                return data
-            # Old format: list of individual entries
-            if isinstance(data, list):
-                return {"runs": [], "sent": data}
-            return {"runs": [], "sent": []}
-        except Exception:
-            return {"runs": [], "sent": []}
-    return {"runs": [], "sent": []}
+    """Load follow-up log.
+
+    The log is the only record of who was already followed up. If it exists
+    but cannot be read, refuse to continue: treating it as empty would send
+    duplicate follow-ups and then overwrite the saved history.
+    """
+    if not FOLLOWUP_LOG_FILE.exists():
+        return {"runs": [], "sent": []}
+    try:
+        data = json.loads(FOLLOWUP_LOG_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        raise RuntimeError(
+            f"{FOLLOWUP_LOG_FILE} is unreadable ({e}); fix or move it before sending follow-ups"
+        ) from e
+    # Old format: list of individual entries
+    if isinstance(data, list):
+        return {"runs": [], "sent": data}
+    if isinstance(data, dict):
+        data.setdefault("runs", [])
+        data.setdefault("sent", [])
+        return data
+    raise RuntimeError(f"{FOLLOWUP_LOG_FILE} is not a JSON object or list; refusing to overwrite it")
 
 
 def save_followup_log(log: dict):
