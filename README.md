@@ -741,15 +741,29 @@ The `mcp_server/` exposes scraped data as MCP tools via `SearchUseCase`:
 ## Dependencies
 
 See `requirements.txt`. Key packages:
-- `httpx` — async HTTP client
+- `httpx` / `requests` — HTTP clients (engines and job scripts)
 - `beautifulsoup4` + `lxml` — HTML parsing
 - `playwright` — browser automation
 - `selenium` — legacy browser automation
-- `scrapy` — large-scale crawling
 - `feedparser` — RSS/Atom parsing
-- `pydantic` — data validation
-- `mcp` — MCP server framework
-- `apscheduler` — job scheduling
+- `pyyaml` — `config/jobs.yaml` loading (built-in scheduler, no APScheduler)
+
+Optional, not in `requirements.txt` (install only when needed):
+- `scrapy` — large-scale crawling engine
+- `pydantic` — richer validation in `adapters/outbound/utils/validators.py`
+  (falls back to plain dataclasses when absent)
+- `mcp` — only for `python -m mcp_server.server`
+
+## Tests
+
+```bash
+.venv/bin/python -m pip install pytest
+.venv/bin/python -m pytest -q          # offline suite under tests/ (pytest.ini)
+```
+
+`scripts/test_ats_autoapply.py` is a manual live-network probe and is
+deliberately excluded from the suite. CI (`.github/workflows/ci.yml`) runs the
+offline suite plus a ruff syntax/undefined-name check on every push.
 
 ---
 
