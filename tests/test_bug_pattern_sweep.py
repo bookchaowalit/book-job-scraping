@@ -174,3 +174,13 @@ class TextEdgeCaseTests(unittest.TestCase):
             self.assertEqual(len(find("ทําความสะอาด")), 1)  # nikhahit + sara aa
             self.assertEqual(len(find("python developer")), 1)
             self.assertEqual(len(find("data engineer")), 1)
+
+
+class PropertyParsePriceTests(unittest.TestCase):
+    def test_separator_only_text_does_not_crash(self):
+        self.assertEqual(listings_mod.parse_price("ราคาเริ่มต้น... ล้านบาท"), 0.0)
+        self.assertEqual(listings_mod.parse_price("฿5,000,000"), 5_000_000)
+
+    def test_grouping_and_decimal_separators(self):
+        self.assertEqual(listings_mod.parse_price("1.234.567 บาท"), 1_234_567)
+        self.assertEqual(listings_mod.parse_price("1,5 ล้าน"), 1_500_000)
