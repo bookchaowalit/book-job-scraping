@@ -76,6 +76,9 @@ class DataCleaner:
         cleaned = []
 
         for item in items:
+            # Work on a copy: callers' dicts must not gain _cleaned_at/_schema
+            # or schema edits (normalize_text=False used to mutate them).
+            item = dict(item)
             # Skip empty items
             if remove_empty and self._is_empty(item):
                 self.stats["removed_empty"] += 1
@@ -264,12 +267,45 @@ class DataCleaner:
         address = re.sub(r"\s+จังหวัด\s+", " จ.", address)
         return address
 
+    _THAI_MONTHS = {
+        "ม.ค.": 1, "มกราคม": 1, "ก.พ.": 2, "กุมภาพันธ์": 2, "มี.ค.": 3, "มีนาคม": 3,
+        "เม.ย.": 4, "เมษายน": 4, "พ.ค.": 5, "พฤษภาคม": 5, "มิ.ย.": 6, "มิถุนายน": 6,
+        "ก.ค.": 7, "กรกฎาคม": 7, "ส.ค.": 8, "สิงหาคม": 8, "ก.ย.": 9, "กันยายน": 9,
+        "ต.ค.": 10, "ตุลาคม": 10, "พ.ย.": 11, "พฤศจิกายน": 11, "ธ.ค.": 12, "ธันวาคม": 12,
+    }
+    _THAI_DATE = re.compile(r"^(\d{1,2})\s*(\S+?)\s*(\d{4})$")
+    _BUDDHIST_ERA_OFFSET = 543
+
     def _normalize_date(self, date_str: str) -> str:
-        """Attempt to normalize date to ISO format."""
-        # Common Thai date patterns
-        # "13 มิ.ย. 2569" → try to parse
-        # For now, just return as-is (full parsing needs thai-month mapping)
-        return date_str.strip()
+        """Normalize a Thai (or ISO) date to ``YYYY-MM-DD``.
+
+        "13 มิ.ย. 2569" and "13 มิถุนายน 2569" (Buddhist era) become
+        "2026-06-13"; a Gregorian year ("13 มิ.ย. 2026") is kept. ISO dates
+        and datetimes are reduced to their date. Anything else is returned
+        stripped but otherwise unchanged, so no information is lost.
+        """
+        text = re.sub(r"\s+", " ", str(date_str or "")).strip()
+        if not text:
+            return text
+        iso = re.match(r"^(\d{4})-(\d{2})-(\d{2})(?:[T ].*)?$", text)
+        if iso:
+            try:
+                return datetime(int(iso[1]), int(iso[2]), int(iso[3])).date().isoformat()
+            except ValueError:
+                return text
+        match = self._THAI_DATE.match(text)
+        if not match:
+            return text
+        day, month_name, year = int(match[1]), match[2], int(match[3])
+        month = self._THAI_MONTHS.get(month_name) or self._THAI_MONTHS.get(month_name + ".")
+        if month is None:
+            return text
+        if year > 2400:  # Buddhist era
+            year -= self._BUDDHIST_ERA_OFFSET
+        try:
+            return datetime(year, month, day).date().isoformat()
+        except ValueError:
+            return text
 
     def extract_contacts(self, text: str) -> dict:
         """

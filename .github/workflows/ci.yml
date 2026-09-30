@@ -28,3 +28,21 @@ jobs:
         env:
           PYTHONUTF8: "1"
         run: python -m pytest -q
+
+  # The runtime host is Windows (ops/windows/scheduled-task.ps1). Exercise the
+  # scheduler-critical, stdlib-only paths there: msvcrt file lock, per-step
+  # timeout with process-tree kill (taskkill), and log rotation.
+  windows-scheduler:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install test runner
+        run: python -m pip install pytest
+      - name: Scheduler tests
+        env:
+          PYTHONUTF8: "1"
+        run: python -m pytest -q tests/test_file_lock.py tests/test_scheduled_run.py

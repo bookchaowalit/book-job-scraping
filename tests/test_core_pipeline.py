@@ -91,6 +91,36 @@ class DataCleanerTests(unittest.TestCase):
         self.assertEqual(got["urls"], ["https://example.com/jobs"])
         self.assertEqual(len(got["phones"]), 1)
 
+    def test_normalize_thai_dates(self) -> None:
+        cases = {
+            "13 มิ.ย. 2569": "2026-06-13",
+            "1 มกราคม 2570": "2027-01-01",
+            "13มิ.ย.2569": "2026-06-13",
+            "5 ธ.ค 2026": "2026-12-05",
+            "2026-09-30T08:00:00Z": "2026-09-30",
+            "  31 ก.พ. 2569 ": "31 ก.พ. 2569",  # invalid day: kept as-is
+            "yesterday": "yesterday",
+            "": "",
+        }
+        for raw, expected in cases.items():
+            with self.subTest(raw=raw):
+                self.assertEqual(self.cleaner._normalize_date(raw), expected)
+
+    def test_news_schema_normalizes_published(self) -> None:
+        got = self.cleaner.clean(
+            [{"title": "ข่าว", "url": "https://example.com/a", "published": "13 มิ.ย. 2569"}],
+            schema="news",
+        )
+        self.assertEqual(got[0]["published"], "2026-06-13")
+
+    def test_clean_does_not_mutate_caller_items(self) -> None:
+        item = {"title": "Engineer", "url": "https://example.com/j", "salary": "30,000 - 40,000"}
+        before = dict(item)
+        for normalize in (True, False):
+            with self.subTest(normalize_text=normalize):
+                self.cleaner.clean([item], schema="job", normalize_text=normalize)
+                self.assertEqual(item, before)
+
 
 class DeduplicatorTests(unittest.TestCase):
     def setUp(self) -> None:

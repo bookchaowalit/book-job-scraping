@@ -670,8 +670,12 @@ python scripts/pipeline_health_monitor.py
 Each scheduled tick (`scripts/scheduled_run.py` on Windows, the cron entry on
 Linux) runs `pipeline_health_monitor.py` after each collection run and holds a
 non-blocking lock (`scripts/file_lock.py` / `flock`) to prevent overlapping
-runs. On Windows, set `PYTHONUTF8=1` for manual runs; the scheduled runner sets
-it for you. Use `--send-telegram` only when an
+runs. Each step has its own timeout (collection 45 min, health 5 min — under
+the 1 h Task Scheduler limit); a timed-out step is killed with its whole process
+tree (`taskkill /T` on Windows, a process group on POSIX) and the tick exits
+124, because Windows does not kill children when the task itself is stopped.
+`cron.log` is rotated to `cron.log.1` above 5 MB. On Windows, set
+`PYTHONUTF8=1` for manual runs; the scheduled runner sets it for you. Use `--send-telegram` only when an
 operator has explicitly approved an external notification.
 
 ---
