@@ -31,11 +31,17 @@ class DataCleaner:
     ]
 
     # Thai text patterns
-    THAI_PHONE_RE = re.compile(r"(?:\+66|0)[\d\s\-]{8,10}")
+    # 9-digit landlines (02-123-4567) and 10-digit mobiles (081-234-5678),
+    # with optional single space/hyphen separators; never ends on a separator.
+    THAI_PHONE_RE = re.compile(r"(?:\+66[\s-]?|0)\d(?:[\s-]?\d){7,8}")
     THAI_POSTAL_RE = re.compile(r"\b\d{5}\b")
     EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
     URL_RE = re.compile(r"https?://[^\s<>\"']+")
-    PRICE_RE = re.compile(r"[\d,]+(?:\.\d+)?")
+    # Must start with a digit so a bare comma ("Negotiable, DOE") never matches.
+    PRICE_RE = re.compile(r"\d[\d,]*(?:\.\d+)?")
+    # A title suffix separator needs whitespace on both sides so hyphenated
+    # words ("Front-End Developer") are not truncated.
+    TITLE_SUFFIX_RE = re.compile(r"\s+[-–|]\s+.*$")
     THAI_TEXT_RE = re.compile(r"[\u0E00-\u0E7F]")
 
     def __init__(self):
@@ -162,7 +168,7 @@ class DataCleaner:
         # Clean title
         title = item.get("title", "")
         if title:
-            item["title"] = re.sub(r"\s*[-–|]\s*.*$", "", title).strip()
+            item["title"] = self.TITLE_SUFFIX_RE.sub("", title).strip()
 
         return item
 
@@ -201,7 +207,7 @@ class DataCleaner:
         # Clean title
         title = item.get("title", "")
         if title:
-            item["title"] = re.sub(r"\s*[-–|]\s*.*$", "", title).strip()
+            item["title"] = self.TITLE_SUFFIX_RE.sub("", title).strip()
 
         # Normalize published date
         pub = item.get("published", "")
@@ -225,12 +231,18 @@ class DataCleaner:
         # Extract numbers
         numbers = self.PRICE_RE.findall(salary)
         if numbers:
-            nums = [int(n.replace(",", "")) for n in numbers]
+            nums = [self._to_number(n) for n in numbers]
             if len(nums) == 2:
                 return f"{nums[0]:,}-{nums[1]:,}"
             elif len(nums) == 1:
                 return f"{nums[0]:,}"
         return salary.strip()
+
+    @staticmethod
+    def _to_number(text: str):
+        """Parse "12,500" or "1.5" into int/float (int when it is whole)."""
+        value = float(text.replace(",", ""))
+        return int(value) if value.is_integer() else value
 
     def _normalize_price(self, price: str) -> str:
         """Normalize price to number."""

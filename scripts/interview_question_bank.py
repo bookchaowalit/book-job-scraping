@@ -7,6 +7,7 @@ Generate comprehensive question bank from top companies and matched jobs.
 import argparse
 import csv
 import json
+import os
 import sys
 import time
 from datetime import datetime
@@ -23,6 +24,10 @@ QUESTION_BANK = INTERVIEW_DIR / "question_bank.json"
 
 # OpenRouter
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+
+# Telegram (optional; notification is skipped when unset)
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
 # Top companies to focus on
 TOP_COMPANIES = [
@@ -369,7 +374,9 @@ def generate_question_bank(jobs, send_telegram_flag=False):
     print(f"\n📊 Total questions: {total_questions}")
     
     # Telegram
-    if send_telegram_flag:
+    if send_telegram_flag and not (TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID):
+        print("⚠️  Telegram skipped: TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID not set")
+    elif send_telegram_flag:
         try:
             import requests
             msg = f"📚 *Interview Question Bank Generated*\n\n"

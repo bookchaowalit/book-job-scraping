@@ -31,7 +31,7 @@ class Deduplicator:
     def _load_db(self):
         """Load hash database from disk."""
         if self.hash_db_file.exists():
-            with open(self.hash_db_file) as f:
+            with open(self.hash_db_file, encoding="utf-8") as f:
                 self.seen_hashes = json.load(f)
         else:
             self.seen_hashes = {}
@@ -39,7 +39,7 @@ class Deduplicator:
     def save(self):
         """Persist hash database to disk."""
         self.hash_db_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.hash_db_file, "w") as f:
+        with open(self.hash_db_file, "w", encoding="utf-8") as f:
             json.dump(self.seen_hashes, f, indent=2)
 
     def _make_hash(self, item: dict, key_fields: List[str]) -> str:
@@ -125,6 +125,8 @@ class Deduplicator:
                     unique.append(item)
                 else:
                     dup_count += 1
+                    if h in self.seen_hashes:
+                        self.seen_hashes[h]["count"] += 1
             unique.reverse()
 
         print(f"[Dedup] {len(items)} items → {len(unique)} unique ({dup_count} duplicates removed)")
@@ -154,7 +156,7 @@ class Deduplicator:
         all_items = []
         for fp in file_paths:
             if fp.exists():
-                with open(fp) as f:
+                with open(fp, encoding="utf-8") as f:
                     data = json.load(f)
                     if isinstance(data, list):
                         all_items.extend(data)
@@ -165,7 +167,7 @@ class Deduplicator:
         unique = self.deduplicate(all_items, key_fields)
 
         output.parent.mkdir(parents=True, exist_ok=True)
-        with open(output, "w") as f:
+        with open(output, "w", encoding="utf-8") as f:
             json.dump(unique, f, indent=2, ensure_ascii=False)
 
         print(f"[Dedup] Merged {len(all_items)} → {len(unique)} items → {output}")
