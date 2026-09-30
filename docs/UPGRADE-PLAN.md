@@ -104,3 +104,6 @@ one-off scripts in `scripts/` remain untested and carry unused imports.
   registry; `send_followup_emails.load_followup_log` now refuses to run on an
   unreadable log (treating it as empty re-sent every follow-up and then
   overwrote the history) and keeps `sent` entries of logs without `runs`.
+- `scrape_discovered_jobs` (extractor routing + URL-slug parsing) and
+  `prepare_applications` (ATS score bonus / apply URL) match ATS and board
+  hosts exactly (`_host_is`), not by substring (`clever.com` was `lever.co`).
