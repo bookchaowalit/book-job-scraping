@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import csv
 import json
+import math
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -62,9 +63,12 @@ def _price_value(value: Any) -> float | None:
     if value is None or value == "":
         return None
     try:
-        return float(value)
+        number = float(value)
     except (TypeError, ValueError):
         return source.parse_price(str(value))
+    # float() accepts "nan"/"inf": NaN compares False against max_price, so it
+    # would slip through the price filter. Treat non-finite prices as unknown.
+    return number if math.isfinite(number) else None
 
 
 def _fallback_price(text: str) -> float | None:

@@ -512,6 +512,21 @@ def detect_price_drops(current: list, history_file: Path, threshold_pct: float) 
     return drops
 
 
+def persist(all_listings: list, output_dir: Path, alert_drop_pct: float) -> list:
+    """Detect drops against *prior* history, then write snapshot and history.
+
+    Price drops must be computed before the current run is appended:
+    otherwise the latest history price is the current price and no drop
+    is ever reported.
+    """
+    history_file = output_dir / "property_history.csv"
+    drops = detect_price_drops(all_listings, history_file, alert_drop_pct)
+    save_listings(all_listings, output_dir)
+    append_history(all_listings, output_dir)
+    print_summary(all_listings, drops)
+    return drops
+
+
 def print_summary(listings: list, drops: list = None):
     """Print listing summary."""
     if not listings:
@@ -653,13 +668,7 @@ def main():
 
     # Save
     if all_listings:
-        save_listings(all_listings, output_dir)
-        append_history(all_listings, output_dir)
-
-        # Detect price drops
-        history_file = output_dir / "property_history.csv"
-        drops = detect_price_drops(all_listings, history_file, args.alert_drop_pct)
-        print_summary(all_listings, drops)
+        persist(all_listings, output_dir, args.alert_drop_pct)
     else:
         print("  No listings parsed (site structure may have changed)")
 
@@ -688,11 +697,7 @@ class PropertyListingScraper:
                 print(f"  Error scraping {listing_type}: {e}")
         if all_listings:
             output_dir = OUTPUT_DIR
-            save_listings(all_listings, output_dir)
-            append_history(all_listings, output_dir)
-            history_file = output_dir / 'property_history.csv'
-            detect_price_drops(all_listings, history_file, self.alert_drop_pct)
-            print_summary(all_listings)
+            persist(all_listings, output_dir, self.alert_drop_pct)
         return [{"source": "property_listings", "count": len(all_listings)}]
 
 

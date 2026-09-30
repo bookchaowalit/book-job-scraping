@@ -88,3 +88,11 @@ one-off scripts in `scripts/` remain untested and carry unused imports.
   child process inside `save()` and checks `items.json` is unchanged. Added
   to the `windows-latest` CI job. Suite 248 passed; ruff 0.15.8 and 0.16.9
   CI gate clean.
+- Cross-repo bug-pattern sweep (`tests/test_bug_pattern_sweep.py`, 7 tests):
+  `scrape_property_listings.persist()` detects price drops *before*
+  appending the run to history (it compared each price with itself, so no
+  drop ever fired); ddproperty `_price_value` rejects NaN/inf (NaN slipped
+  past `max_price`); `find_contact_emails` matches ATS/job-board hosts by
+  exact host/subdomain, not substring; `parse_fb_search_results` keeps
+  first-seen email order (`emails[0]` depended on set order); HN and
+  Himalayas epochs are rendered in UTC, not host-local time.

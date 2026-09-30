@@ -150,6 +150,17 @@ def verify_domain(domain: str) -> bool:
         return False
 
 
+def _host_matches(host: str, domain: str) -> bool:
+    """True when ``host`` is ``domain`` or one of its subdomains.
+
+    A substring test would treat lookalike hosts such as ``jobs.clever.com``
+    as ``lever.co`` or ``notgreenhouse.io`` as ``greenhouse.io``.
+    """
+    host = host.lower().rstrip(".")
+    domain = domain.lower().rstrip(".")
+    return host == domain or host.endswith("." + domain)
+
+
 def extract_domain_from_url(url: str) -> str | None:
     """Extract the most likely company domain from a job URL."""
     if not url:
@@ -164,7 +175,7 @@ def extract_domain_from_url(url: str) -> str | None:
 
     # Check if it's an ATS URL → extract company slug
     for ats_host, extractor in ATS_PATTERNS.items():
-        if ats_host in host:
+        if _host_matches(host, ats_host):
             slug = extractor(path) if 'path' in extractor.__code__.co_varnames else extractor(host)
             if slug:
                 for tld in ['.com', '.io', '.co', '.ai']:
@@ -174,7 +185,7 @@ def extract_domain_from_url(url: str) -> str | None:
 
     # Check if it's a job board → can't extract company domain
     for jb in JOB_BOARDS:
-        if jb in host:
+        if _host_matches(host, jb):
             return None
 
     # Direct company URL
