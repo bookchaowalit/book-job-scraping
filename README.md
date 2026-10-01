@@ -56,14 +56,14 @@ book-scraping/
 │           ├── validators.py       # Data schema validation
 │           └── exporters.py        # Legacy export helpers
 │
-├── categories/                 # Website-specific scrapers (inherit from engines)
-│   └── jobs/jobsdb_scraper.py      # Jobsdb Thailand
+├── jobs/                       # Website-specific scrapers (inherit from engines)
+│   └── jobsdb_scraper.py       # Jobsdb Thailand
 │
 ├── mcp_server/                 # MCP data-as-a-service (inbound adapter)
 │   └── server.py               # Uses SearchUseCase → StorageAdapter
 │
 ├── config/
-│   └── jobs.yaml               # 26 configured jobs; 9 enabled in this checkout
+│   └── jobs.yaml               # 23 configured jobs; 9 enabled in this checkout
 │
 ├── templates/                  # Copy-paste templates for new scrapers
 │   ├── new_httpx_scraper.py
@@ -120,8 +120,10 @@ The scheduler state is written to `data/schedule_state.json`.
 | `stock_prices` | finance | Yahoo Finance chart API | Daily 8:00 AM | migrated to book-stock-data |
 | `defi_yields` | finance | DefiLlama pools API | Daily 7:00 AM | migrated to book-defi-data |
 | news / Kaidee / Wongnai jobs | — | — | — | removed 2026-09-30; owned by book-news-, book-ecommerce-, book-restaurant-scraping |
+| `flight_prices` | travel | firecrawl+httpx | Weekly Mon 7:00 AM | disabled (`scripts.scrape_flight_prices` not in this checkout) |
 | `seo_rankings` | marketing | httpx public pages | Daily 8:00 AM | migrated to book-seo-data |
 | `job_postings` | jobs | firecrawl+httpx | Every 6 hours | enabled |
+| `career_postings` | jobs | httpx (public company ATS pages) | Every 6 hours | enabled |
 | `job_match_filter` | jobs | local | Every 6 hours, after capture | enabled |
 | `scraper_dashboard` | operations | local | 8:15, 11:15, 20:15 | enabled |
 
@@ -576,7 +578,7 @@ Lake-first ingestion and the read-only API remain owned by `book-fx-data`.
 The stock adapter writes the validated Yahoo Finance chart responses to
 `data/exported/stock_prices_raw.json` and the capture projections to
 `data/exported/stock_prices.csv` and `data/exported/stock_history.csv`.
-Lake-first ingestion and the read-only API remain owned by `book-finance-data`.
+Lake-first ingestion and the read-only API remain owned by `book-stock-data`.
 
 The AI tools adapter writes bounded Futurepedia HTML pages to
 `data/exported/ai_tools_raw.json` and the capture projections to
@@ -857,7 +859,6 @@ change on the next run):
 | `pipeline_health_monitor.py` | Checks disk, scheduler, data freshness, and optional integrations |
 | `send_application_emails.py` | Sends application emails to recruiters |
 | `auto_send_email.py` | Automated email sending with follow-ups |
-| `find_recruiter_emails.py` | Discovers recruiter contacts from company data |
 
 The scheduled search uses international remote sources plus Fastwork,
 PeoplePerHour, and Toptal. It includes contract-to-hire, paid-trial,

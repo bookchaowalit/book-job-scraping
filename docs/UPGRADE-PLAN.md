@@ -2,7 +2,7 @@
 
 **Current state: 8/10** (pass 1: 7; pass 2: 7 -> 7.5; pass 3: 7.5, core
 ports now covered; pass 4: 7.5 -> 8, stores written atomically) — broad, well-documented collection + prep pipeline with a
-green offline suite (243 tests), Linux CI plus a Windows scheduler job; many
+green offline suite (274 tests after pass 5), Linux CI plus a Windows scheduler job; many
 one-off scripts in `scripts/` remain untested and carry unused imports.
 
 ## Backlog
@@ -16,14 +16,15 @@ one-off scripts in `scripts/` remain untested and carry unused imports.
   `engines/base.py`) are regenerable exports; move them to
   `core.atomic_io.write_json_atomic` if any becomes a source of truth.
 - Widen the Windows CI job from the scheduler tests to the full offline
-  suite once it is known to pass on Windows (needs a first green run).
+  suite (the scheduler-only Windows job is green as of run 12 on
+  `claude/untitled-session-bhlj06`; the full suite is untested on Windows).
 - `ops/windows/scheduled-task.ps1`: confirm on the host that a `-Once`
   trigger without `-RepetitionDuration` repeats indefinitely on its Windows
   build (behaviour differs across versions); add it explicitly if not.
 
 ### P2
 - `ruff check --select F401 --fix` across `core/`, `adapters/`, `scripts/`
-  (≈40 unused imports), then widen the CI ruff rule set.
+  (197 unused imports as of 2026-10-01), then widen the CI ruff rule set.
 - Split `requirements.txt` into runtime vs. optional browser/AI extras so
   CI does not need Playwright/Selenium wheels.
 - Deduplicator uses MD5 for content keys (fine for dedup, not security);
