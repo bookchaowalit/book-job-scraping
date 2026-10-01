@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest ruff
+      - name: Lint (syntax errors and undefined names)
+        run: ruff check --select E9,F63,F7,F82 .
+      - name: Offline test suite
+        env:
+          PYTHONUTF8: "1"
+        run: python -m pytest -q
+
+  # The runtime host is Windows (ops/windows/scheduled-task.ps1). Exercise the
+  # scheduler-critical, stdlib-only paths there: msvcrt file lock, per-step
+  # timeout with process-tree kill (taskkill), log rotation, and atomic
+  # (temp file + os.replace) store writes surviving a killed tick.
+  windows-scheduler:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install test runner
+        run: python -m pip install pytest
+      - name: Scheduler tests
+        env:
+          PYTHONUTF8: "1"
+        run: python -m pytest -q tests/test_file_lock.py tests/test_scheduled_run.py tests/test_atomic_writes.py

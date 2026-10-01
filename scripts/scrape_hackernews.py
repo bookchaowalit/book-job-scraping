@@ -16,7 +16,7 @@ import argparse
 import csv
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 try:
@@ -30,6 +30,11 @@ OUTPUT_DIR = ROOT / "data" / "exported"
 
 HN_API = "https://hacker-news.firebaseio.com/v0"
 HN_SEARCH = "https://hn.algolia.com/api/v1"
+
+
+def epoch_to_utc_iso(value) -> str:
+    """HN ``time`` is a Unix epoch; render it as UTC, not host-local time."""
+    return datetime.fromtimestamp(value or 0, tz=timezone.utc).isoformat()
 
 
 def fetch_top_stories(limit: int = 30) -> list:
@@ -52,7 +57,7 @@ def fetch_top_stories(limit: int = 30) -> list:
                     "url": item.get("url", ""),
                     "score": item.get("score", 0),
                     "by": item.get("by", ""),
-                    "time": datetime.fromtimestamp(item.get("time", 0)).isoformat(),
+                    "time": epoch_to_utc_iso(item.get("time", 0)),
                     "descendants": item.get("descendants", 0),
                     "type": "top",
                 })
@@ -81,7 +86,7 @@ def fetch_new_stories(limit: int = 20) -> list:
                     "url": item.get("url", ""),
                     "score": item.get("score", 0),
                     "by": item.get("by", ""),
-                    "time": datetime.fromtimestamp(item.get("time", 0)).isoformat(),
+                    "time": epoch_to_utc_iso(item.get("time", 0)),
                     "descendants": item.get("descendants", 0),
                     "type": "new",
                 })

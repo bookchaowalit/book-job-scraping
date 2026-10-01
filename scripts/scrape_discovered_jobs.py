@@ -40,6 +40,16 @@ HEADERS = {
 
 # ── Extraction patterns per job board ─────────────────────────────────────────
 
+def _host_is(host: str, domain: str) -> bool:
+    """True when ``host`` is ``domain`` or one of its subdomains.
+
+    A substring test matched lookalikes such as ``clever.com`` for
+    ``lever.co`` or ``notgreenhouse.io`` for ``greenhouse.io``.
+    """
+    host = (host or '').lower().rstrip('.')
+    return host == domain or host.endswith('.' + domain)
+
+
 def extract_from_remoteok(url: str, html: str) -> dict:
     """Extract from remoteok.com URLs."""
     # URL pattern: /remote-jobs/remote-data-scientist-producer
@@ -321,7 +331,7 @@ def extract_job_info(url: str, html: str) -> dict:
     host = (urlparse(url).hostname or '').lower().replace('www.', '')
 
     for pattern, extractor in EXTRACTORS.items():
-        if pattern in host:
+        if _host_is(host, pattern):
             return extractor(url, html)
 
     # Direct company URL
@@ -359,7 +369,7 @@ def extract_from_url_slug(url: str) -> dict:
     parts = path.split('/')
 
     # arc.dev/remote-jobs/{slug}
-    if 'arc.dev' in host:
+    if _host_is(host, 'arc.dev'):
         slug = parts[-1] if parts else ''
         # Pattern: {company}-{title} or just {title}
         title = slug.replace('-', ' ').title()
@@ -367,32 +377,32 @@ def extract_from_url_slug(url: str) -> dict:
         return {'title': title, 'company': '', 'source': 'url_slug'}
 
     # greenhouse.io/{company}/jobs/{id}
-    if 'greenhouse.io' in host:
+    if _host_is(host, 'greenhouse.io'):
         company = parts[0].replace('-', ' ').title() if parts else ''
         return {'title': '', 'company': company, 'source': 'url_slug'}
 
     # lever.co/{company}/{id}
-    if 'lever.co' in host:
+    if _host_is(host, 'lever.co'):
         company = parts[0].replace('-', ' ').title() if len(parts) > 0 else ''
         return {'title': '', 'company': company, 'source': 'url_slug'}
 
     # ashbyhq.com/{company}/{id}
-    if 'ashbyhq.com' in host:
+    if _host_is(host, 'ashbyhq.com'):
         company = parts[0].replace('-', ' ').title() if parts else ''
         return {'title': '', 'company': company, 'source': 'url_slug'}
 
     # smartrecruiters.com/{company}/{id}
-    if 'smartrecruiters.com' in host:
+    if _host_is(host, 'smartrecruiters.com'):
         company = parts[0].replace('-', ' ').title() if parts else ''
         return {'title': '', 'company': company, 'source': 'url_slug'}
 
     # landing.jobs/at/{company}/{slug}
-    if 'landing.jobs' in host and len(parts) >= 2 and parts[0] == 'at':
+    if _host_is(host, 'landing.jobs') and len(parts) >= 2 and parts[0] == 'at':
         company = parts[1].replace('-', ' ').title()
         return {'title': '', 'company': company, 'source': 'url_slug'}
 
     # themuse.com/jobs/listings/{id}#{slug}
-    if 'themuse.com' in host:
+    if _host_is(host, 'themuse.com'):
         frag = parsed.fragment
         if frag:
             slug_parts = frag.split('-')
@@ -403,7 +413,7 @@ def extract_from_url_slug(url: str) -> dict:
                 return {'title': title, 'company': company, 'source': 'url_slug'}
 
     # remoteok.com/remote-jobs/{slug}
-    if 'remoteok.com' in host or 'remoteok.io' in host:
+    if _host_is(host, 'remoteok.com') or _host_is(host, 'remoteok.io'):
         slug = parts[-1] if parts else ''
         # Pattern: remote-{title}-{at|@}-{company} or remote-{title}
         title = slug.replace('-', ' ').title()
@@ -411,19 +421,19 @@ def extract_from_url_slug(url: str) -> dict:
         return {'title': title, 'company': '', 'source': 'url_slug'}
 
     # himalayas.app/jobs/{slug}
-    if 'himalayas.app' in host:
+    if _host_is(host, 'himalayas.app'):
         slug = parts[-1] if parts else ''
         title = slug.replace('-', ' ').title()
         return {'title': title, 'company': '', 'source': 'url_slug'}
 
     # remotive.com/remote-jobs/{slug}
-    if 'remotive.com' in host:
+    if _host_is(host, 'remotive.com'):
         slug = parts[-1] if parts else ''
         title = slug.replace('-', ' ').title()
         return {'title': title, 'company': '', 'source': 'url_slug'}
 
     # jobicy.com
-    if 'jobicy.com' in host:
+    if _host_is(host, 'jobicy.com'):
         slug = parts[-1] if parts else ''
         title = slug.replace('-', ' ').title()
         return {'title': title, 'company': '', 'source': 'url_slug'}

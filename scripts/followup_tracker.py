@@ -275,17 +275,37 @@ def generate_followup_emails(followup_list: list) -> list:
     return generated
 
 
+def load_followup_log_for_update():
+    """Return the shared follow-up log in dict form, or ``None`` if unusable.
+
+    ``send_followup_emails`` reads the same file to decide who was already
+    followed up, and it accepts the legacy list format (a bare list of sent
+    entries). Normalize that form here the same way instead of treating it as
+    corrupt: renaming it would make the sender see no log and send duplicate
+    follow-ups. An unreadable file is left in place (the sender refuses to run
+    on it) and ``None`` is returned so this run is simply not logged.
+    """
+    import json
+    if not FOLLOWUP_LOG.exists():
+        return {"runs": []}
+    try:
+        data = json.loads(FOLLOWUP_LOG.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        data = None
+    if isinstance(data, list):
+        return {"runs": [], "sent": data}
+    if isinstance(data, dict) and isinstance(data.setdefault("runs", []), list):
+        return data
+    print(f"  WARNING: {FOLLOWUP_LOG.name} is unreadable; left it untouched and skipped logging this run")
+    return None
+
+
 def log_followup_run(followup_list: list, emails_generated: list):
     """Log follow-up run to JSON."""
     import json
-    log = {}
-    if FOLLOWUP_LOG.exists():
-        try:
-            log = json.loads(FOLLOWUP_LOG.read_text())
-        except Exception:
-            log = {}
-    if "runs" not in log:
-        log["runs"] = []
+    log = load_followup_log_for_update()
+    if log is None:
+        return
     log["runs"].append({
         "timestamp": datetime.now().isoformat(),
         "followup_count": len(followup_list),
@@ -293,7 +313,9 @@ def log_followup_run(followup_list: list, emails_generated: list):
         "companies": [item["company"] for item in followup_list[:10]],
     })
     log["runs"] = log["runs"][-50:]  # Keep last 50 runs
-    FOLLOWUP_LOG.write_text(json.dumps(log, indent=2))
+    tmp = FOLLOWUP_LOG.with_name(f"{FOLLOWUP_LOG.name}.tmp")
+    tmp.write_text(json.dumps(log, indent=2, ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp, FOLLOWUP_LOG)
 
 
 def main():

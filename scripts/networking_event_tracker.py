@@ -14,6 +14,11 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+try:
+    from scripts.json_store import load_json_for_update
+except ImportError:  # run as a script from scripts/
+    from json_store import load_json_for_update
+
 # Paths
 SCRIPT_DIR = Path(__file__).resolve().parent
 DATA_DIR = SCRIPT_DIR.parent / "data"
@@ -89,13 +94,8 @@ REMOTE_EVENTS = [
 
 def load_events():
     """Load saved events."""
-    if not EVENTS_FILE.exists():
-        return {"events": [], "last_updated": None}
-    try:
-        with open(EVENTS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {"events": [], "last_updated": None}
+    # An unreadable file is kept aside instead of being overwritten on save.
+    return load_json_for_update(EVENTS_FILE, lambda: {"events": [], "last_updated": None})
 
 
 def save_events(data):

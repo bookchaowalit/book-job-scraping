@@ -3,12 +3,46 @@ Storage adapter — implements StoragePort.
 File-based storage with JSON files organized by category.
 """
 import json
+import re
+import unicodedata
 from pathlib import Path
 from typing import List, Optional, Dict
-from datetime import datetime
 
+from core.atomic_io import write_json_atomic
 from core.models import ScrapedItem, JobListing, BusinessListing, ProductListing, NewsArticle
-from core.ports import StoragePort
+from core.pipeline.cleaner import strip_invisible
+
+
+def _search_key(value) -> str:
+    """Fold text for substring search.
+
+    NFKC unifies full-width Latin and the two Thai sara-am spellings
+    (U+0E33 vs nikhahit + sara aa); zero-width characters are dropped and
+    whitespace collapsed so a scraped "Python\u200b  Dev" still matches
+    "python dev".
+    """
+    text = unicodedata.normalize("NFKC", str(value))
+    return re.sub(r"\s+", " ", strip_invisible(text)).strip().casefold()
+
+
+def _as_number(value) -> Optional[float]:
+    """Coerce stored prices such as 1299, "1,299" or "฿1,299.50" to float.
+
+    Exported JSON often keeps prices as display strings; comparing those with a
+    float filter used to raise ``TypeError``. Non-numeric values return None
+    and are excluded by range filters.
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    match = re.search(r"-?\d[\d,]*(?:\.\d+)?", str(value))
+    if not match:
+        return None
+    try:
+        return float(match.group(0).replace(",", ""))
+    except ValueError:
+        return None
 
 
 class StorageAdapter:
@@ -44,8 +78,9 @@ class StorageAdapter:
         # Save all items
         filepath = collection_dir / "items.json"
         data = [item.to_dict() for item in existing]
-        with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2, default=str)
+        # Temp file + os.replace: an interrupted tick keeps the previous store
+        # instead of truncating items.json.
+        write_json_atomic(filepath, data, ensure_ascii=False, indent=2, default=str)
 
         # Update cache
         self._cache[collection] = existing
@@ -64,9 +99,9 @@ class StorageAdapter:
 
     def load(self, collection: str, filters: Optional[Dict] = None) -> List[ScrapedItem]:
         """Load items from collection (category folder or exported files)."""
-        # Check cache first
+        # Check cache first (return a copy so callers cannot mutate the cache)
         if collection in self._cache and not filters:
-            return self._cache[collection]
+            return list(self._cache[collection])
 
         # Try primary path: data/{collection}/items.json
         filepath = self.data_dir / collection / "items.json"
@@ -106,27 +141,34 @@ class StorageAdapter:
         return items
 
     def exists(self, url: str) -> bool:
-        """Check if URL exists in any collection."""
+        """Check if URL exists in any collection (unreadable files are skipped)."""
         for collection_dir in self.data_dir.iterdir():
             if collection_dir.is_dir():
                 filepath = collection_dir / "items.json"
                 if filepath.exists():
-                    with open(filepath, "r", encoding="utf-8") as f:
-                        data = json.load(f)
-                        if any(item.get("url") == url for item in data):
-                            return True
+                    try:
+                        with open(filepath, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                    except (json.JSONDecodeError, UnicodeDecodeError, OSError):
+                        continue
+                    if isinstance(data, list) and any(
+                        isinstance(item, dict) and item.get("url") == url for item in data
+                    ):
+                        return True
         return False
 
     def _dict_to_item(self, data: dict) -> ScrapedItem:
         """Convert dict back to appropriate ScrapedItem subclass."""
         # Determine type from raw_data or source
-        source = data.get("source", "")
+        source = str(data.get("source", ""))
         if "job" in source or "salary" in data:
             return JobListing(**{k: v for k, v in data.items() if k in JobListing.__dataclass_fields__})
         elif "business" in source or "rating" in data:
             return BusinessListing(**{k: v for k, v in data.items() if k in BusinessListing.__dataclass_fields__})
         elif "product" in source or "price" in data:
             return ProductListing(**{k: v for k, v in data.items() if k in ProductListing.__dataclass_fields__})
+        elif "news" in source or "published_date" in data or "summary" in data:
+            return NewsArticle(**{k: v for k, v in data.items() if k in NewsArticle.__dataclass_fields__})
         else:
             return ScrapedItem(**{k: v for k, v in data.items() if k in ScrapedItem.__dataclass_fields__})
 
@@ -135,14 +177,15 @@ class StorageAdapter:
         filtered = items
         for key, value in filters.items():
             if key.endswith("_contains"):
-                field = key.replace("_contains", "")
-                filtered = [i for i in filtered if value.lower() in str(getattr(i, field, "")).lower()]
+                field = key[: -len("_contains")]
+                needle = _search_key(value)
+                filtered = [i for i in filtered if needle in _search_key(getattr(i, field, ""))]
             elif key.endswith("_lte"):
-                field = key.replace("_lte", "")
-                filtered = [i for i in filtered if getattr(i, field, 0) is not None and getattr(i, field, 0) <= value]
+                field = key[: -len("_lte")]
+                filtered = [i for i in filtered if (n := _as_number(getattr(i, field, None))) is not None and n <= value]
             elif key.endswith("_gte"):
-                field = key.replace("_gte", "")
-                filtered = [i for i in filtered if getattr(i, field, 0) is not None and getattr(i, field, 0) >= value]
+                field = key[: -len("_gte")]
+                filtered = [i for i in filtered if (n := _as_number(getattr(i, field, None))) is not None and n >= value]
             else:
                 filtered = [i for i in filtered if getattr(i, key, None) == value]
         return filtered

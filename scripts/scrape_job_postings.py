@@ -20,7 +20,7 @@ import csv
 import json
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 try:
@@ -483,7 +483,7 @@ def fetch_himalayas(keyword: str, pages: int = 3) -> list:
                     "url": j.get("applicationLink", ""),
                     "source": "Himalayas",
                     "keyword": keyword,
-                    "posted": datetime.fromtimestamp(j["pubDate"]).strftime("%Y-%m-%d") if j.get("pubDate") else "",
+                    "posted": datetime.fromtimestamp(j["pubDate"], tz=timezone.utc).strftime("%Y-%m-%d") if j.get("pubDate") else "",
                     "tags": ",".join(j.get("categories", [])[:5]),
                 })
         except Exception as e:

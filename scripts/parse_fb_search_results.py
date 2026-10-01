@@ -40,7 +40,8 @@ def extract_emails(text: str) -> list:
         if any(x in email.lower() for x in ['example.com', 'domain.com']):
             continue
         filtered.append(email)
-    return list(set(filtered))
+    # Keep first-seen order: ``best = emails[0]`` must not depend on set order.
+    return list(dict.fromkeys(filtered))
 
 
 def extract_company_name(title: str, snippet: str) -> str:

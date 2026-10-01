@@ -40,6 +40,16 @@ except ImportError:
     PREVIOUS_EMPLOYERS = set()
 
 
+def _host_is(host: str, domain: str) -> bool:
+    """True when ``host`` is ``domain`` or one of its subdomains.
+
+    A substring test matched lookalikes such as ``clever.com`` for
+    ``lever.co`` or ``notgreenhouse.io`` for ``greenhouse.io``.
+    """
+    host = (host or '').lower().rstrip('.')
+    return host == domain or host.endswith('.' + domain)
+
+
 def is_previous_employer(company: str) -> bool:
     """Check if company matches a previous employer (case-insensitive partial match)."""
     c = company.lower().strip()
@@ -108,7 +118,7 @@ def score_job(job: dict, contacts: dict) -> int:
     
     # ATS platform (direct application possible)
     host = urlparse(url).hostname or ''
-    if 'greenhouse' in host or 'lever.co' in host or 'ashbyhq' in host:
+    if _host_is(host, 'greenhouse.io') or _host_is(host, 'lever.co') or _host_is(host, 'ashbyhq.com'):
         score += 3
     
     # Senior/Staff level
@@ -123,11 +133,11 @@ def get_application_url(url: str) -> str:
     host = urlparse(url).hostname or ''
     
     # ATS platforms have direct apply URLs
-    if 'greenhouse' in host:
+    if _host_is(host, 'greenhouse.io'):
         return url  # Already direct
-    if 'lever.co' in host:
+    if _host_is(host, 'lever.co'):
         return url
-    if 'ashbyhq' in host:
+    if _host_is(host, 'ashbyhq.com'):
         return url
     
     # Job boards - need to find the apply link

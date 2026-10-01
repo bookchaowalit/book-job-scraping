@@ -356,82 +356,13 @@ intervals, unordered timestamps, missing closes, or missing previous close:
 ```
 
 Raw JSON and CSV projections are local producer artifacts; lake/API ownership
-remains with `book-finance-data`.
+remains with `book-stock-data`.
 
-For `kaidee_classifieds`, the adapter uses one bounded public HTML page and
-parses the embedded `__NEXT_DATA__` listing payload. It keeps only priced
-listings, deduplicates by listing ID, canonicalizes HTTPS Kaidee URLs, and
-fails closed when the page has no contract-compliant rows:
-
-```bash
-.venv/bin/python -m unittest discover -s tests -p 'test_kaidee_scraper.py' -v
-.venv/bin/python main.py run kaidee_classifieds
-```
-
-Review source terms and rate limits before adding more pages or categories.
-The raw payload and CSV projections remain local producer artifacts for the
-downstream marketplace data product.
-
-For `matichon_news`, the adapter uses the public RSS feed, keeps only entries
-with a title, canonical Matichon URL, and normalized publication date, and
-preserves feed/source attribution:
-
-```bash
-.venv/bin/python -m unittest discover -s tests -p 'test_matichon_scraper.py' -v
-.venv/bin/python main.py run matichon_news
-```
-
-The raw XML and CSV projections remain local producer artifacts for the
-downstream news data product.
-
-For `thai_tech_news`, the adapter uses Blognone's current
-`/atom.xml` feed (the legacy `/atom` path returns 404), preserves Blognone
-article IDs, and keeps only canonical technology articles with publication
-dates:
-
-```bash
-.venv/bin/python -m unittest discover -s tests -p 'test_thai_tech_scraper.py' -v
-.venv/bin/python main.py run thai_tech_news
-```
-
-The raw XML and CSV projections remain local producer artifacts for the
-downstream news data product.
-
-For `thai_business_news`, the adapter uses only the Bangkok Post Business RSS
-feed, normalizes source timestamps to UTC using the Bangkok timezone when the
-feed omits an offset, and keeps only attributed canonical business articles:
-
-```bash
-.venv/bin/python -m unittest discover -s tests -p 'test_thai_business_scraper.py' -v
-.venv/bin/python main.py run thai_business_news
-```
-
-The raw XML and CSV projections remain local producer artifacts for the
-downstream news data product.
-
-For `wongnai_bangkok`, the adapter reads Wongnai's public restaurant HTML and
-the embedded `window._wn` state. It requests at most three pages of 100
-records, validates canonical restaurant URLs, and keeps only rows whose
-embedded address is attributed to Bangkok:
-
-```bash
-.venv/bin/python -m unittest discover -s tests -p 'test_wongnai_scraper.py' -v
-.venv/bin/python main.py run wongnai_bangkok
-```
-
-The bounded raw pages and CSV projections remain local producer artifacts for
-the downstream restaurant data product. Review Wongnai terms and the 4-second
-rate limit before increasing page count or page size.
-
-The `wongnai_upcountry` schedule reuses the same parser with the explicit
-`locationKey=6` source URL and the `khonkaen`, `korat`, and `pattaya` matchers.
-Its three-page smoke returned 28 unique rows, including the Chon Buri city label
-used by the Pattaya matcher:
-
-```bash
-.venv/bin/python -m unittest discover -s tests -p 'test_wongnai_scraper.py' -v
-.venv/bin/python main.py run wongnai_upcountry
-```
+The former `kaidee_classifieds`, `matichon_news`, `thai_tech_news`,
+`thai_business_news`, `wongnai_bangkok` and `wongnai_upcountry` jobs (and their
+tests) were removed on 2026-09-30. Collection now lives in
+`book-ecommerce-scraping` (Kaidee), `book-news-scraping` (RSS feeds) and
+`book-restaurant-scraping` (Wongnai); run them from those repositories.
 
 For `ai_tools`, the adapter uses Futurepedia's public HTML directory across the
 configured `ai-agents`, `productivity`, and `code` categories. It requests at

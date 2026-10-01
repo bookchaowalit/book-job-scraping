@@ -12,6 +12,18 @@ from datetime import datetime
 DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 EXPORTED_DIR = DATA_DIR / "exported"
 
+# Invisible format characters that ``str.strip()`` / ``\s`` do not remove:
+# zero-width space (common as a Thai word-break hint in scraped HTML), word
+# joiner, BOM / zero-width no-break space and soft hyphen. ZWJ/ZWNJ are kept
+# because they change how emoji and some scripts render.
+_INVISIBLE_RE = re.compile("[\u200b\u2060\ufeff\u00ad]")
+_THAI_DIGITS = str.maketrans("๐๑๒๓๔๕๖๗๘๙", "0123456789")
+
+
+def strip_invisible(text: str) -> str:
+    """Remove zero-width/BOM characters that survive ``strip()``."""
+    return _INVISIBLE_RE.sub("", text)
+
 
 class DataCleaner:
     """
@@ -31,11 +43,18 @@ class DataCleaner:
     ]
 
     # Thai text patterns
-    THAI_PHONE_RE = re.compile(r"(?:\+66|0)[\d\s\-]{8,10}")
+    # 9-digit landlines (02-123-4567) and 10-digit mobiles (081-234-5678),
+    # with optional single space/hyphen separators; never ends on a separator.
+    THAI_PHONE_RE = re.compile(r"(?:\+66[\s-]?|0)\d(?:[\s-]?\d){7,8}")
     THAI_POSTAL_RE = re.compile(r"\b\d{5}\b")
     EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
     URL_RE = re.compile(r"https?://[^\s<>\"']+")
-    PRICE_RE = re.compile(r"[\d,]+(?:\.\d+)?")
+    # Must start with a digit so a bare comma ("Negotiable, DOE") never matches.
+    PRICE_RE = re.compile(r"\d[\d,]*(?:\.\d+)?")
+    SALARY_NUMBER_RE = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*([kK](?![a-zA-Z]))?")
+    # A title suffix separator needs whitespace on both sides so hyphenated
+    # words ("Front-End Developer") are not truncated.
+    TITLE_SUFFIX_RE = re.compile(r"\s+[-–|]\s+.*$")
     THAI_TEXT_RE = re.compile(r"[\u0E00-\u0E7F]")
 
     def __init__(self):
@@ -70,6 +89,9 @@ class DataCleaner:
         cleaned = []
 
         for item in items:
+            # Work on a copy: callers' dicts must not gain _cleaned_at/_schema
+            # or schema edits (normalize_text=False used to mutate them).
+            item = dict(item)
             # Skip empty items
             if remove_empty and self._is_empty(item):
                 self.stats["removed_empty"] += 1
@@ -100,7 +122,7 @@ class DataCleaner:
         # Check if all values are empty/None
         meaningful = [
             v for v in item.values()
-            if v is not None and str(v).strip() != ""
+            if v is not None and strip_invisible(str(v)).strip() != ""
         ]
         return len(meaningful) == 0
 
@@ -125,6 +147,7 @@ class DataCleaner:
         """Normalize a single string value."""
         # Remove control characters
         text = re.sub(r"[\x00-\x08\x0b\x0c]", "", text)
+        text = strip_invisible(text)
         # Collapse whitespace
         text = re.sub(r"\s+", " ", text)
         # Strip leading/trailing whitespace
@@ -162,7 +185,7 @@ class DataCleaner:
         # Clean title
         title = item.get("title", "")
         if title:
-            item["title"] = re.sub(r"\s*[-–|]\s*.*$", "", title).strip()
+            item["title"] = self.TITLE_SUFFIX_RE.sub("", title).strip()
 
         return item
 
@@ -201,7 +224,7 @@ class DataCleaner:
         # Clean title
         title = item.get("title", "")
         if title:
-            item["title"] = re.sub(r"\s*[-–|]\s*.*$", "", title).strip()
+            item["title"] = self.TITLE_SUFFIX_RE.sub("", title).strip()
 
         # Normalize published date
         pub = item.get("published", "")
@@ -222,22 +245,29 @@ class DataCleaner:
         salary = salary.strip()
         # Remove "บาท", "THB", "฿"
         salary = re.sub(r"(บาท|THB|฿)", "", salary, flags=re.I).strip()
-        # Extract numbers
-        numbers = self.PRICE_RE.findall(salary)
+        salary = salary.translate(_THAI_DIGITS)
+        # Extract numbers; a "k"/"K" suffix ("30K - 50K") means thousands.
+        numbers = self.SALARY_NUMBER_RE.findall(salary)
         if numbers:
-            nums = [int(n.replace(",", "")) for n in numbers]
+            nums = [self._to_number(n, 1000 if k else 1) for n, k in numbers]
             if len(nums) == 2:
                 return f"{nums[0]:,}-{nums[1]:,}"
             elif len(nums) == 1:
                 return f"{nums[0]:,}"
         return salary.strip()
 
+    @staticmethod
+    def _to_number(text: str, scale: int = 1):
+        """Parse "12,500" or "1.5" into int/float (int when it is whole)."""
+        value = float(text.replace(",", "")) * scale
+        return int(value) if value.is_integer() else value
+
     def _normalize_price(self, price: str) -> str:
         """Normalize price to number."""
         if not price:
             return ""
         # Remove currency symbols
-        price = re.sub(r"[฿$€£,]", "", str(price))
+        price = re.sub(r"[฿$€£,]", "", str(price).translate(_THAI_DIGITS))
         numbers = self.PRICE_RE.findall(price)
         if numbers:
             return numbers[0]
@@ -252,12 +282,50 @@ class DataCleaner:
         address = re.sub(r"\s+จังหวัด\s+", " จ.", address)
         return address
 
+    _THAI_MONTHS = {
+        "ม.ค.": 1, "มกราคม": 1, "ก.พ.": 2, "กุมภาพันธ์": 2, "มี.ค.": 3, "มีนาคม": 3,
+        "เม.ย.": 4, "เมษายน": 4, "พ.ค.": 5, "พฤษภาคม": 5, "มิ.ย.": 6, "มิถุนายน": 6,
+        "ก.ค.": 7, "กรกฎาคม": 7, "ส.ค.": 8, "สิงหาคม": 8, "ก.ย.": 9, "กันยายน": 9,
+        "ต.ค.": 10, "ตุลาคม": 10, "พ.ย.": 11, "พฤศจิกายน": 11, "ธ.ค.": 12, "ธันวาคม": 12,
+    }
+    # "13 มิ.ย. 2569", optionally followed by a time "14:30", "14.30 น." or
+    # "14:30:05".
+    _THAI_DATE = re.compile(
+        r"^(\d{1,2})\s*(\S+?)\s*(\d{4})"
+        r"(?:\s+(?:เวลา\s*)?(\d{1,2})[:.](\d{2})(?:[:.](\d{2}))?\s*(?:น\.?)?)?$"
+    )
+    _BUDDHIST_ERA_OFFSET = 543
+
     def _normalize_date(self, date_str: str) -> str:
-        """Attempt to normalize date to ISO format."""
-        # Common Thai date patterns
-        # "13 มิ.ย. 2569" → try to parse
-        # For now, just return as-is (full parsing needs thai-month mapping)
-        return date_str.strip()
+        """Normalize Thai / Buddhist-era dates to ISO 8601 without losing data.
+
+        "13 มิ.ย. 2569" and "13 มิถุนายน 2569" (Buddhist era) become
+        "2026-06-13"; a Gregorian year ("13 มิ.ย. 2026") is kept. A trailing
+        time is preserved ("13 มิ.ย. 2569 14:30 น." -> "2026-06-13T14:30:00").
+        Anything else -- including ISO dates/datetimes with their time and
+        timezone, RFC 2822 feed dates and unparseable text -- is returned
+        whitespace-collapsed but otherwise unchanged, so no information is lost.
+        """
+        text = re.sub(r"\s+", " ", str(date_str or "")).strip()
+        if not text:
+            return text
+        match = self._THAI_DATE.match(text)
+        if not match:
+            return text
+        day, month_name, year = int(match[1]), match[2], int(match[3])
+        month = self._THAI_MONTHS.get(month_name) or self._THAI_MONTHS.get(month_name + ".")
+        if month is None:
+            return text
+        if year > 2400:  # Buddhist era
+            year -= self._BUDDHIST_ERA_OFFSET
+        try:
+            if match[4] is None:
+                return datetime(year, month, day).date().isoformat()
+            return datetime(
+                year, month, day, int(match[4]), int(match[5]), int(match[6] or 0)
+            ).isoformat()
+        except ValueError:
+            return text
 
     def extract_contacts(self, text: str) -> dict:
         """
