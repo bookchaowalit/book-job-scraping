@@ -1,0 +1,8 @@
+system_id: bookchaowalit/book-apps/tools/book-job-scraping
+prefix: BJS
+brand: "BOOK JOB SCRAPING"
+subtitle: "เก็บและจับคู่ประกาศงาน พร้อม pipeline เตรียมใบสมัคร โดยการส่งจริงถูกล็อกไว้"
+footer: "Book Job Scraping — ฉบับร่างเพื่อพิจารณา"
+color: "#2f4b6e"
+audience: internal
+tier: L2
