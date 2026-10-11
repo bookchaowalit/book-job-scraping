@@ -43,17 +43,10 @@ def ensure_data_dirs(*subdirs: str) -> Path:
 
 
 def load_env() -> None:
-    """Load .env from repo root, then optional parent Solo Empire .env."""
+    """Load .env from the repo root only."""
     try:
         from dotenv import load_dotenv
     except ImportError:
         return
 
     load_dotenv(REPO_ROOT / ".env")
-    # Nested under solo-empire/.../book-job-scraping — walk up a few levels.
-    for parent in list(REPO_ROOT.parents)[:8]:
-        candidate = parent / ".env"
-        if candidate.exists() and candidate != REPO_ROOT / ".env":
-            # Parent may be infra/ or solo-empire root.
-            load_dotenv(candidate, override=False)
-            break

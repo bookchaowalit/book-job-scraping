@@ -43,7 +43,7 @@ Default handoff input for ingest:
 # From Solo Empire / book-job-data docs:
 python -m book_job_data.ingest \
   --input /path/to/book-job-scraping/data/job_postings.csv \
-  --data-lake-uri /path/to/solo-empire/data/lake
+  --data-lake-uri /path/to/lake
 ```
 
 Env overrides:

@@ -79,9 +79,6 @@ For each repo, check:
 ## Quick Commands
 
 ```bash
-# Check all repos
-python3 ~/solo-empire/infra/scripts/sync-all-repos.py
-
 # Check specific repo
 cd ~/book-dev/book-portfolio/bookchaowalit-portfolio-frontend
 git status
