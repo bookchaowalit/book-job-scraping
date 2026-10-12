@@ -35,7 +35,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PAGES_DIR = ROOT / "data" / "pages"
 WORKER_DIR = ROOT / "data" / "insights-worker"
 DEFAULT_WORKER_NAME = "solo-empire-insights"
-GITHUB_REPO = "bookchaowalit/solo-empire-insights"
+GITHUB_REPO = "bookchaowalit/insights-dashboard"
 GITHUB_PAGES_URL = f"https://{GITHUB_REPO.split('/')[0]}.github.io/{GITHUB_REPO.split('/')[1]}/"
 
 
