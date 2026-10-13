@@ -8,7 +8,7 @@ Fill env values only in a private secrets store; never commit secrets.
 ## Install / build
 
 ```bash
-cd projects/product/engineering/book-dev/github/bookchaowalit/book-apps/tools/career-job-scraper
+cd projects/product/engineering/book-dev/github/bookchaowalit/book-apps/tools/book-job-scraping
 python3 -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt

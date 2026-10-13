@@ -9,7 +9,7 @@ Hexagonal-architecture scraping platform with 5 engines, scheduled jobs,
 MCP search over local storage, and a **job application prep** pipeline.
 
 **Canonical nested path:**
-`projects/product/engineering/book-dev/github/bookchaowalit/book-apps/tools/career-job-scraper/`
+`projects/product/engineering/book-dev/github/bookchaowalit/book-apps/tools/book-job-scraping/`
 **Architecture:** Hexagonal (Ports & Adapters)
 **Engines:** httpx+BS4, Playwright, Selenium, Scrapy, RSS
 **Categories:** Jobs, E-commerce, Restaurants, Directories, News, Property
