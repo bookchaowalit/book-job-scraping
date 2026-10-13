@@ -1,7 +1,7 @@
 # book-job-scraping — Producer Brief & Boundary Contract
 
 *Tier A tool flagship (collection / automation). Nested repo:
-`projects/product/engineering/book-dev/github/bookchaowalit/book-apps/tools/book-job-scraping`.*
+`projects/product/engineering/book-dev/github/bookchaowalit/book-apps/tools/career-job-scraper`.*
 
 ## Who this is for
 
