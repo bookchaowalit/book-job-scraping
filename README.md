@@ -896,3 +896,20 @@ python scripts/send_application_emails.py
 - **Facebook scraper:** `domains/product/engineering/book-dev/book-client/scraping-facebook/` (client work)
 - **Novel scraper:** `domains/product/engineering/book-dev/book-products/bookreading/ai-service/scrapers.py`
 - **Scraping strategy:** `domains/marketing/growth/book-sales/web-scraping-strategy.md`
+
+## Reproducible offline checks
+
+Use a project virtual environment and the committed constraints; both runtime
+and test dependencies are pinned in `constraints.txt` (Python 3.11 CI). The
+Windows timezone dependency remains conditional in `requirements.txt`.
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m pytest tests -q
+```
+
+`pytest.ini` limits discovery to `tests/` and makes repository imports explicit.
+The live ATS probe under `scripts/` is excluded from default test discovery.
+To upgrade dependencies, resolve the runtime requirements, pytest, ruff and
+tzdata together for Python 3.11, update every affected constraint, and run the
+offline suite before committing the new pins.

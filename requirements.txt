@@ -1,4 +1,5 @@
 # Book Scraping Platform — Python Dependencies
+-c constraints.txt
 # Install into a project venv only (do not use system Python):
 #   python3 -m venv .venv && . .venv/bin/activate
 #   pip install -r requirements.txt
