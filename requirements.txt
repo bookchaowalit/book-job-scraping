@@ -27,6 +27,13 @@ firecrawl-py>=1.0.0
 # ── Data processing ────────────────────────────────
 pyyaml>=6.0
 
+# ── Transitive floors (security) ──────────────────
+# constraints.txt already pins newer versions; these floors keep any resolution
+# without the constraints file above the published advisories.
+aiohttp>=3.13.4
+anyio>=4.14.2
+idna>=3.15
+
 # ── Windows runtime ────────────────────────────────
 # zoneinfo has no system tz database on Windows.
 tzdata>=2024.1; sys_platform == "win32"
