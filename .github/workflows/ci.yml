@@ -1,47 +1,43 @@
+# CI + security baseline (DevSecOps Phase 1). Public repository: GitHub-hosted runners.
 name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: pip
-          cache-dependency-path: |
-            requirements.txt
-            requirements-dev.txt
-            constraints.txt
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements-dev.txt
-      - name: Lint (syntax errors and undefined names)
-        run: ruff check --select E9,F63,F7,F82 .
-      - name: Offline test suite
-        env:
-          PYTHONUTF8: "1"
-        run: python -m pytest -q
+  scraper:
+    uses: bookchaowalit/platform-ci-workflows/.github/workflows/ci-python.yml@c37ef9d113eefb3ed45429717cb7ca201192c3fc # v1.0.1
+    with:
+      python-version: "3.11" # constraints.txt is the reproducible Python 3.11 resolution
+      # Formatting the code base would rewrite ~195 files (~18k lines) and move every existing
+      # Semgrep finding; left for a dedicated change. Lint scope: see ruff.toml.
+      format-check: false
+      # Offline suite (fixtures only, network guard in tests/conftest.py).
+      test-command: PYTHONUTF8=1 python -m pytest -q
 
   # The runtime host is Windows (ops/windows/scheduled-task.ps1). Exercise the
   # scheduler-critical, stdlib-only paths there: msvcrt file lock, per-step
   # timeout with process-tree kill (taskkill), log rotation, and atomic
   # (temp file + os.replace) store writes surviving a killed tick.
+  # Kept from the previous CI: the shared workflows have no Windows job.
   windows-scheduler:
-    runs-on: windows-latest
+    runs-on: windows-2025
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
       - name: Install test runner
@@ -50,3 +46,6 @@ jobs:
         env:
           PYTHONUTF8: "1"
         run: python -m pytest -q tests/test_file_lock.py tests/test_scheduled_run.py tests/test_atomic_writes.py
+
+  security:
+    uses: bookchaowalit/platform-ci-workflows/.github/workflows/security.yml@c37ef9d113eefb3ed45429717cb7ca201192c3fc # v1.0.1
